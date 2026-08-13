@@ -310,8 +310,7 @@ Manthan360 handles document processing through a streamlined 9-step pipeline:
 Create a `.env` file in the project root directory based on `.env.example`:
 
 ```env
-# Google Gemini AI API Key (Required for server.ts)
-GEMINI_API_KEY=your_google_gemini_api_key
+
 
 # Hosting Application URL
 APP_URL=http://localhost:3000
