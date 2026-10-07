@@ -274,7 +274,7 @@ export default function MindMap({ focusedNote, onUpdateNote }: MindMapProps) {
         </div>
       </div>
 
-      {loading && <Loader message="Gemini AI is parsing concept connections and building a responsive hierarchical network..." />}
+      {loading && <Loader message="Manthan360 is parsing concept connections and building a hierarchical network..." step={2} />}
 
       {error && (
         <div id="mindmap-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center gap-3 text-red-200 text-xs">

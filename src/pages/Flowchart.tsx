@@ -243,7 +243,7 @@ export default function Flowchart({ focusedNote, onUpdateNote }: FlowchartProps)
             </span>
           </div>
           <h2 className="text-2xl font-sans font-black text-white mt-1">Interactive Process Flowcharts</h2>
-          <p className="text-slate-400 text-xs mt-0.5">Chronological, scrollable flowchart nodes auto-sequenced by Gemini</p>
+          <p className="text-slate-400 text-xs mt-0.5">Chronological, scrollable flowchart nodes auto-sequenced by Manthan360</p>
         </div>
         
         {/* Actions bar */}
@@ -279,7 +279,7 @@ export default function Flowchart({ focusedNote, onUpdateNote }: FlowchartProps)
         </div>
       </div>
 
-      {loading && <Loader message="Gemini AI is decoding text chronologies and structuring high-performance flow modules..." />}
+      {loading && <Loader message="Manthan360 is decoding text chronologies and structuring flow modules..." step={2} />}
 
       {error && (
         <div id="flowchart-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center gap-3 text-red-200 text-xs">

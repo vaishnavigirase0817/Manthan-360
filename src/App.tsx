@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./services/firebase";
+import { auth, db } from "./services/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { FirebaseUser, Note } from "./types";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
+import MobileLearningMenu from "./components/MobileLearningMenu";
+import MainChatWorkspace from "./components/MainChatWorkspace";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import UploadNotes from "./pages/UploadNotes";
@@ -20,18 +23,48 @@ import ExportHub from "./pages/ExportHub";
 import Loader from "./components/Loader";
 import { checkAndTickStreak } from "./services/gamification";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { MessageSquare, ArrowLeft, X, Sparkles } from "lucide-react";
 
 function AppContent() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [focusedNote, setFocusedNote] = useState<Note | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   
   const navigate = useNavigate();
 
+  // Load recent notes whenever user is active
+  useEffect(() => {
+    if (!user) {
+      setRecentNotes([]);
+      return;
+    }
+
+    const fetchRecentNotes = async () => {
+      try {
+        const q = query(
+          collection(db, "notes"),
+          where("userId", "==", user.uid)
+        );
+        const snap = await getDocs(q);
+        const loaded: Note[] = [];
+        snap.forEach((d) => loaded.push(d.data() as Note));
+        loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setRecentNotes(loaded);
+      } catch (e) {
+        console.error("Failed to load recent notes for sidebar:", e);
+      }
+    };
+
+    fetchRecentNotes();
+  }, [user, focusedNote]);
+
   // Monitor Auth Session
   useEffect(() => {
-    // 1. Instantly check if there is a persistent sandbox user in local storage
     const storedDemo = localStorage.getItem("manthan360_demo_user");
     if (storedDemo) {
       try {
@@ -39,7 +72,6 @@ function AppContent() {
         if (parsedDemo && parsedDemo.uid) {
           setUser(parsedDemo);
           setAuthChecking(false);
-          // If they are on the root route, navigate them automatically to dashboard
           if (window.location.pathname === "/") {
             navigate("/dashboard", { replace: true });
           }
@@ -49,7 +81,6 @@ function AppContent() {
       }
     }
 
-    // 2. Setup standard listener to handle standard Firebase Auth redirects/sessions
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         const formattedUser = {
@@ -59,15 +90,11 @@ function AppContent() {
           photoURL: currentUser.photoURL,
         };
         setUser(formattedUser);
-        localStorage.removeItem("manthan360_demo_user"); // standard auth supersedes demo mode
+        localStorage.removeItem("manthan360_demo_user");
         
-        // Connect and sync the consecutive active streak counter
         checkAndTickStreak(currentUser.uid).catch((err) => console.error("Streak sync failure:", err));
-        
-        // Successful login/auth -> Redirect user to Dashboard
         navigate("/dashboard", { replace: true });
       } else {
-        // If there's no active standard session AND no local demo session, clear the screen
         if (!localStorage.getItem("manthan360_demo_user")) {
           setUser(null);
           setFocusedNote(null);
@@ -83,7 +110,13 @@ function AppContent() {
 
   const handleSelectNote = (note: Note) => {
     setFocusedNote(note);
-    setActiveTab("summary"); // transition instantly to its summaries to begin studying!
+    // After note is selected, open the conversational learning workspace with note context
+    setActiveTab("chat");
+  };
+
+  const handleStartNewSession = () => {
+    setFocusedNote(null);
+    setActiveTab("chat");
   };
 
   const handleLoginSuccess = (u: any) => {
@@ -103,10 +136,12 @@ function AppContent() {
       <div className="min-h-screen bg-[#020617] flex items-center justify-center relative overflow-hidden" id="auth-loading-gate">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/10 rounded-full blur-[100px]" />
-        <Loader message="Verifying secure student authorization session..." />
+        <Loader message="Verifying secure student authorization session..." step={1} />
       </div>
     );
   }
+
+  const isConversationalView = activeTab === "chat" || activeTab === "tutor";
 
   return (
     <Routes>
@@ -135,104 +170,220 @@ function AppContent() {
               <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none z-0" />
 
               {/* Modern Fixed Navbar */}
-              <Navbar user={user} />
+              <Navbar
+                user={user}
+                onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+                onOpenMobileTools={() => setMobileToolsOpen(true)}
+              />
 
-              {/* Two Column Workspace Layout */}
-              <div className="flex-1 flex flex-col md:flex-row relative z-10" id="applet-core-shell">
-                {/* Navigation Sidebar Panel */}
-                <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} noteSelected={!!focusedNote} />
+              {/* Mobile Drawer (When hamburger clicked on small screens) */}
+              {mobileSidebarOpen && (
+                <div
+                  className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm md:hidden flex"
+                  onClick={() => setMobileSidebarOpen(false)}
+                >
+                  <div
+                    className="w-72 bg-slate-950 border-r border-white/10 h-full p-4 flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                          <Sparkles className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="font-bold text-white">Manthan360</span>
+                      </div>
+                      <button
+                        onClick={() => setMobileSidebarOpen(false)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <Sidebar
+                      activeTab={activeTab}
+                      setActiveTab={(tab) => {
+                        setActiveTab(tab);
+                        setMobileSidebarOpen(false);
+                      }}
+                      noteSelected={!!focusedNote}
+                      onNewSession={() => {
+                        handleStartNewSession();
+                        setMobileSidebarOpen(false);
+                      }}
+                      recentNotes={recentNotes}
+                      onSelectRecentNote={(n) => {
+                        handleSelectNote(n);
+                        setMobileSidebarOpen(false);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile 3-Dot Learning Tools Menu */}
+              <MobileLearningMenu
+                isOpen={mobileToolsOpen}
+                onClose={() => setMobileToolsOpen(false)}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                noteSelected={!!focusedNote}
+              />
+
+              {/* Main Workspace Layout */}
+              <div className="flex-1 flex relative z-10 overflow-hidden" id="applet-core-shell">
+                {/* Desktop Collapsible Navigation Sidebar */}
+                <Sidebar
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  noteSelected={!!focusedNote}
+                  isCollapsed={sidebarCollapsed}
+                  onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  onNewSession={handleStartNewSession}
+                  recentNotes={recentNotes}
+                  onSelectRecentNote={handleSelectNote}
+                />
 
                 {/* Primary View Workspace */}
-                <main className="flex-1 p-6 md:p-8 overflow-y-auto" id="applet-viewport">
-                  <div className="max-w-5xl mx-auto" id="applet-viewport-inner">
-                    {activeTab === "dashboard" && (
-                      <Dashboard
+                <main className="flex-1 flex flex-col overflow-y-auto relative" id="applet-viewport">
+                  {/* Top Switcher Bar when inside a dedicated tool */}
+                  {!isConversationalView && activeTab !== "dashboard" && (
+                    <div className="px-6 py-2.5 bg-slate-900/40 border-b border-white/5 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md">
+                      <button
+                        type="button"
+                        id="return-to-chat-btn"
+                        onClick={() => setActiveTab("chat")}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 transition-all font-medium cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Conversational Study Companion</span>
+                      </button>
+
+                      {focusedNote && (
+                        <span className="text-slate-400 truncate max-w-xs hidden sm:inline">
+                          Active: <strong className="text-slate-200">{focusedNote.title}</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex-1 flex flex-col" id="applet-viewport-inner">
+                    {/* Conversational AI Workspace */}
+                    {isConversationalView && (
+                      <MainChatWorkspace
                         user={user}
-                        onSelectNote={handleSelectNote}
                         focusedNote={focusedNote}
+                        onSelectNote={handleSelectNote}
                         onUpdateNote={setFocusedNote}
+                        activeTab={activeTab}
                         setActiveTab={setActiveTab}
+                        onNewSession={handleStartNewSession}
                       />
+                    )}
+
+                    {activeTab === "dashboard" && (
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <Dashboard
+                          user={user}
+                          onSelectNote={handleSelectNote}
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                          setActiveTab={setActiveTab}
+                        />
+                      </div>
                     )}
                     
                     {activeTab === "upload" && (
-                      <UploadNotes
-                        user={user}
-                        onUploaded={handleSelectNote}
-                        setActiveTab={setActiveTab}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <UploadNotes
+                          user={user}
+                          onUploaded={handleSelectNote}
+                          setActiveTab={setActiveTab}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "summary" && (
-                      <Summary
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <Summary
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "flashcards" && (
-                      <Flashcards
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <Flashcards
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "quiz" && (
-                      <QuizRoom
-                        focusedNote={focusedNote}
-                        user={user}
-                      />
-                    )}
-
-                    {activeTab === "tutor" && (
-                      <Tutor
-                        focusedNote={focusedNote}
-                        user={user}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <QuizRoom
+                          focusedNote={focusedNote}
+                          user={user}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "mindmap" && (
-                      <MindMap
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <MindMap
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "flowchart" && (
-                      <Flowchart
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <Flowchart
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "planner" && (
-                      <StudyPlanner
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <StudyPlanner
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "analytics" && (
-                      <ProgressAnalytics
-                        user={user}
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <ProgressAnalytics
+                          user={user}
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "videos" && (
-                      <LearningVideos
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                        user={user}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <LearningVideos
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                          user={user}
+                        />
+                      </div>
                     )}
 
                     {activeTab === "export" && (
-                      <ExportHub
-                        focusedNote={focusedNote}
-                        onUpdateNote={setFocusedNote}
-                      />
+                      <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                        <ExportHub
+                          focusedNote={focusedNote}
+                          onUpdateNote={setFocusedNote}
+                        />
+                      </div>
                     )}
                   </div>
                 </main>

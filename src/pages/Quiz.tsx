@@ -103,7 +103,7 @@ export default function QuizRoom({ focusedNote, user }: QuizProps) {
         </div>
       </div>
 
-      {loading && <Loader message="Gemini AI is examining document logic to generate comprehensive evaluation questions..." />}
+      {loading && <Loader message="Manthan360 is examining document logic to generate evaluation questions..." step={2} />}
 
       {error && (
         <div id="quiz-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center justify-between gap-3 text-red-200 text-sm">

@@ -219,7 +219,7 @@ export default function ExportHub({ focusedNote, onUpdateNote }: ExportHubProps)
 
     } catch (err: any) {
       console.error("Presentation generation fail:", err);
-      setErrorMsg(err.message || "Could not generate slide deck JSON. Please check Gemini API configuration.");
+      setErrorMsg(err.message || "Could not generate slide deck JSON. Please try again.");
     } finally {
       setLoadingPptx(false);
     }
@@ -286,7 +286,7 @@ export default function ExportHub({ focusedNote, onUpdateNote }: ExportHubProps)
 
     } catch (err: any) {
       console.error("AI Teacher compilation fail:", err);
-      setErrorMsg(err.message || "Failed to generate AI Teacher lecture. Please check Gemini API billing or logs.");
+      setErrorMsg(err.message || "Failed to generate AI Teacher lecture. Please check connection and try again.");
     } finally {
       setLoadingTeacher(false);
     }

@@ -111,7 +111,7 @@ export default function Flashcards({ focusedNote, onUpdateNote }: FlashcardsProp
         )}
       </div>
 
-      {loading && <Loader message="Gemini AI is parsing key statements and formatting interactive card items..." />}
+      {loading && <Loader message="Manthan360 is parsing key statements and preparing interactive flashcards..." step={2} />}
 
       {error && (
         <div id="flash-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center justify-between gap-3 text-red-200 text-sm">

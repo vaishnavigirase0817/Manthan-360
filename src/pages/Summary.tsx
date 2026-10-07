@@ -93,7 +93,7 @@ export default function Summary({ focusedNote, onUpdateNote }: SummaryProps) {
         )}
       </div>
 
-      {loading && <Loader message="Gemini AI is analyzing material context and drafting summarized formats..." />}
+      {loading && <Loader message="Manthan360 is analyzing material context and creating structured summaries..." step={2} />}
 
       {error && (
         <div id="summary-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center justify-between gap-3 text-red-200 text-sm">

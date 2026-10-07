@@ -343,7 +343,7 @@ export default function LearningVideos({ focusedNote, onUpdateNote, user }: Lear
           </div>
           <h3 className="text-lg font-sans font-bold text-white leading-tight">Generate Interactive Video Workshop</h3>
           <p className="text-slate-400 text-xs mt-2 leading-relaxed">
-            Let the Gemini cognitive engine organize your target materials under 5 structural slide layouts with professional voice descriptions and descriptive illustrations.
+            Let Manthan360 organize your target materials under structural slide layouts with professional voice descriptions and descriptive illustrations.
           </p>
 
           <button

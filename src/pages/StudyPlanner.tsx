@@ -145,7 +145,7 @@ export default function StudyPlanner({ focusedNote, onUpdateNote }: StudyPlanner
         </div>
       </div>
 
-      {loading && <Loader message="Gemini AI is parsing material weight to build optimized hourly routines and cognitive plans..." />}
+      {loading && <Loader message="Manthan360 is analyzing material to build optimized study routines and milestones..." step={2} />}
 
       {error && (
         <div id="planner-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center gap-3 text-red-200 text-xs">
