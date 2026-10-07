@@ -4,6 +4,9 @@ import { SummaryData, Flashcard, MindNode, FlowNode, QuizQuestion, ChatMessage, 
 async function handleResponseJson(response: Response, defaultError: string) {
   const text = await response.text();
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error("Manthan360 rate limit reached. Please wait a few moments and try again.");
+    }
     let errMsg = defaultError;
     try {
       const parsed = JSON.parse(text);
@@ -11,7 +14,7 @@ async function handleResponseJson(response: Response, defaultError: string) {
         errMsg = parsed.error;
       }
     } catch (_) {
-      errMsg = `${defaultError} (HTTP ${response.status}: ${response.statusText || "Communication Issue"}). Please retry in a few seconds.`;
+      errMsg = `${defaultError} (HTTP ${response.status}: ${response.statusText || "Communication Issue"}). Please retry in a few moments.`;
     }
     throw new Error(errMsg);
   }

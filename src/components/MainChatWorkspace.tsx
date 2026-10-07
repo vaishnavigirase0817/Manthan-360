@@ -25,6 +25,7 @@ import {
   HelpCircle,
   CheckCircle2,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 interface MainChatWorkspaceProps {
@@ -49,6 +50,8 @@ export default function MainChatWorkspace({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lastQuery, setLastQuery] = useState("");
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const sessionId = focusedNote && user ? `chat_${focusedNote.id}_${user.uid}` : "";
@@ -101,9 +104,12 @@ export default function MainChatWorkspace({
     if (!text.trim() || loading) return;
 
     setError("");
+    setLastQuery(text.trim());
+
+    // 1. Immediately render user's message optimistically
     const userMsg: ChatMessage = {
       role: "user",
-      content: text,
+      content: text.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
@@ -136,18 +142,31 @@ export default function MainChatWorkspace({
       }
     } catch (err: any) {
       console.error("Manthan360 Chat Error:", err);
-      setError("Manthan360 couldn't complete the response. Please try again.");
+      setError("Manthan360 couldn't complete that request. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRetryLastQuery = () => {
+    if (lastQuery) {
+      handleSendMessage(lastQuery);
+    }
+  };
+
   const handleActionClick = (actionType: string) => {
+    if (actionInProgress) return; // Prevent duplicate clicks
+    setActionInProgress(actionType);
+
     if (actionType === "explain_simply") {
       handleSendMessage("Explain this study material simply with intuitive examples.");
     } else {
       setActiveTab(actionType);
     }
+
+    setTimeout(() => {
+      setActionInProgress(null);
+    }, 600);
   };
 
   return (
@@ -271,7 +290,8 @@ export default function MainChatWorkspace({
                       type="button"
                       id={`msg-action-summary-${idx}`}
                       onClick={() => handleActionClick("summary")}
-                      className="px-2.5 py-1 rounded-lg bg-violet-950/60 hover:bg-violet-900/80 text-violet-200 border border-violet-500/30 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      disabled={!!actionInProgress}
+                      className="px-2.5 py-1 rounded-lg bg-violet-950/60 hover:bg-violet-900/80 text-violet-200 border border-violet-500/30 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <FileText className="w-3 h-3" /> Summary
                     </button>
@@ -279,7 +299,8 @@ export default function MainChatWorkspace({
                       type="button"
                       id={`msg-action-flashcards-${idx}`}
                       onClick={() => handleActionClick("flashcards")}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      disabled={!!actionInProgress}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <Layers className="w-3 h-3" /> Flashcards
                     </button>
@@ -287,7 +308,8 @@ export default function MainChatWorkspace({
                       type="button"
                       id={`msg-action-quiz-${idx}`}
                       onClick={() => handleActionClick("quiz")}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      disabled={!!actionInProgress}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <Award className="w-3 h-3" /> Quiz
                     </button>
@@ -295,7 +317,8 @@ export default function MainChatWorkspace({
                       type="button"
                       id={`msg-action-mindmap-${idx}`}
                       onClick={() => handleActionClick("mindmap")}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      disabled={!!actionInProgress}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <GitGraph className="w-3 h-3" /> Mind Map
                     </button>
@@ -303,7 +326,8 @@ export default function MainChatWorkspace({
                       type="button"
                       id={`msg-action-flowchart-${idx}`}
                       onClick={() => handleActionClick("flowchart")}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      disabled={!!actionInProgress}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <Share2 className="w-3 h-3" /> Flowchart
                     </button>
@@ -320,23 +344,36 @@ export default function MainChatWorkspace({
           );
         })}
 
-        {/* Loading Bubble */}
+        {/* Instant Thinking Bubble */}
         {loading && (
-          <div className="flex gap-3 animate-fade-in" id="chat-loading-indicator">
+          <div className="flex gap-3 animate-fade-in" id="chat-thinking-indicator">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0 mt-1">
               <Bot className="w-4 h-4 text-white" />
             </div>
             <div className="bg-slate-900/90 border border-white/10 rounded-2xl rounded-bl-sm p-4">
-              <Loader message="Manthan360 is analyzing your study notes..." step={2} />
+              <Loader message="Manthan360 is thinking and analyzing your study context..." step={2} />
             </div>
           </div>
         )}
 
-        {/* Error Notification */}
+        {/* Error Notification with Inline Retry */}
         {error && (
-          <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{error}</span>
+          <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center justify-between gap-2 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{error}</span>
+            </div>
+            {lastQuery && (
+              <button
+                type="button"
+                id="chat-retry-btn"
+                onClick={handleRetryLastQuery}
+                disabled={loading}
+                className="px-3 py-1 bg-rose-900/60 hover:bg-rose-900/90 border border-rose-700/50 rounded-lg text-rose-100 text-xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
+              >
+                <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Retry
+              </button>
+            )}
           </div>
         )}
 
