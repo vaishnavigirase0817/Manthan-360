@@ -31,6 +31,10 @@ export default function Flowchart({ focusedNote, onUpdateNote }: FlowchartProps)
 
   useEffect(() => {
     if (!focusedNote) return;
+    setError("");
+    setSelectedStepId(null);
+    setActiveWalkthroughIndex(null);
+
     if (focusedNote.flowchart) {
       loadFlowchartData();
       return;
@@ -54,14 +58,14 @@ export default function Flowchart({ focusedNote, onUpdateNote }: FlowchartProps)
         });
       } catch (e: any) {
         console.error(e);
-        setError("AI Flowchart compiling failed. Review contents.");
+        setError(e.message || "AI Flowchart compiling failed. Review contents.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchFlowchart();
-  }, [focusedNote]);
+  }, [focusedNote?.id]);
 
   // Sync ReactFlow nodes/edges when flowchart stages change
   useEffect(() => {

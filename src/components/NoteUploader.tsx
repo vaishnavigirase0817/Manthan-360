@@ -1,10 +1,11 @@
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import Tesseract from "tesseract.js";
-import { Upload, FileText, Image, PenTool, CheckCircle, RefreshCw, AlertCircle } from "lucide-react";
+import { Upload, FileText, Image, PenTool, CheckCircle, RefreshCw, AlertCircle, Sparkles, BookOpen } from "lucide-react";
 import { motion } from "motion/react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { FirebaseUser, Note } from "../types";
+import { extractTextFromPdf, ExtractionProgress } from "../services/pdfExtractor";
 
 interface NoteUploaderProps {
   user: FirebaseUser | null;
@@ -15,8 +16,10 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [progressMessage, setProgressMessage] = useState("");
+  const [pageCount, setPageCount] = useState<number | null>(null);
   const [extractedText, setExtractedText] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [error, setError] = useState("");
@@ -48,67 +51,102 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
     }
   };
 
-  const processSelectedFile = (selectedFile: File) => {
+  const processSelectedFile = async (selectedFile: File) => {
     setError("");
+    setExtractedText("");
+    setPageCount(null);
     const fileType = selectedFile.type;
     const isImage = fileType.startsWith("image/");
-    const isPdf = fileType === "application/pdf" || selectedFile.name.endsWith(".pdf");
+    const isPdf = fileType === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
 
     if (!isImage && !isPdf) {
-      setError("Please upload an image (PNG, JPG) or a PDF study material.");
+      setError("Please upload an image (PNG, JPG) or a PDF study document.");
       return;
     }
 
     setFile(selectedFile);
-    if (!title) {
-      // Auto fill title from filename
-      const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-      setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
-    }
+    // Auto fill title from filename
+    const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
 
-    if (isImage) {
-      triggerOCR(selectedFile);
+    if (isPdf) {
+      triggerPdfExtraction(selectedFile);
     } else {
-      // PDF handling: prompt for manual fallback or simplified parse guidance
-      setExtractedText(
-        `[PDF Uploaded: ${selectedFile.name}]\nNote: PDFs represent advanced layouts. For optimal precision, you can copy-paste the text directly or let our AI study tutor assist you with this document context.`
+      triggerImageOCR(selectedFile);
+    }
+  };
+
+  const triggerPdfExtraction = async (pdfFile: File) => {
+    setIsProcessing(true);
+    setProgressPercent(10);
+    setProgressMessage(`Loading ${pdfFile.name}...`);
+    setError("");
+
+    try {
+      const result = await extractTextFromPdf(pdfFile, (p: ExtractionProgress) => {
+        setProgressMessage(p.message);
+        if (p.stage === "extracting" && p.totalPages > 0) {
+          setProgressPercent(Math.round(15 + (p.currentPage / p.totalPages) * 60));
+        } else if (p.stage === "ocr") {
+          const ocrRatio = (p.ocrProgress || 0) / 100;
+          const pageRatio = (p.currentPage - 1 + ocrRatio) / (p.totalPages || 1);
+          setProgressPercent(Math.round(20 + pageRatio * 75));
+        } else if (p.stage === "completed") {
+          setProgressPercent(100);
+        }
+      });
+
+      setPageCount(result.pageCount);
+      setExtractedText(result.text);
+      setIsProcessing(false);
+    } catch (err: any) {
+      console.error("PDF Extraction failure:", err);
+      setIsProcessing(false);
+      setError(
+        err.message ||
+          "Unable to extract readable text from this PDF. Please upload a text-based PDF or a clearer scanned document."
       );
     }
   };
 
-  const triggerOCR = (imageFile: File) => {
-    setIsOcrProcessing(true);
-    setOcrProgress(0);
+  const triggerImageOCR = (imageFile: File) => {
+    setIsProcessing(true);
+    setProgressPercent(10);
+    setProgressMessage("Starting optical character recognition on image...");
     setError("");
 
     Tesseract.recognize(imageFile, "eng", {
       logger: (m) => {
         if (m.status === "recognizing text") {
-          setOcrProgress(Math.round(m.progress * 100));
+          const prog = Math.round(m.progress * 100);
+          setProgressPercent(prog);
+          setProgressMessage(`Scanning handwritten text: ${prog}%`);
         }
       },
     })
       .then(({ data: { text } }) => {
-        setIsOcrProcessing(false);
-        if (text.trim().length === 0) {
+        setIsProcessing(false);
+        const clean = text.trim();
+        if (clean.length < 15) {
           setError("No readable handwritten notes found. Please ensure the note image has high legibility.");
         } else {
-          setExtractedText(text);
+          setExtractedText(clean);
         }
       })
       .catch((err) => {
         console.error("Tesseract error:", err);
-        setIsOcrProcessing(false);
-        setError("OCR Engine failed to process note. Please copy-paste your notes text manually below.");
+        setIsProcessing(false);
+        setError("OCR Engine failed to process image note. Please copy-paste your notes text manually below.");
       });
   };
 
   const handleManualPasteSubmit = () => {
-    if (!pasteText.trim()) {
-      setError("Please paste some revision notes first!");
+    const clean = pasteText.trim();
+    if (!clean || clean.length < 15) {
+      setError("Please paste substantive revision notes (at least a few sentences)!");
       return;
     }
-    setExtractedText(pasteText);
+    setExtractedText(clean);
     if (!title) {
       setTitle("Study Material Note");
     }
@@ -123,21 +161,21 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
       setError("Please supply a study title or topic name.");
       return;
     }
-    if (!extractedText.trim()) {
-      setError("Notes must contain extracted text before generating study material.");
+    if (!extractedText.trim() || extractedText.trim().length < 15) {
+      setError("Notes must contain readable extracted text before generating study material.");
       return;
     }
 
     try {
       setError("");
       const noteId = "note_" + Date.now();
-      
+
       const newNote: Note = {
         id: noteId,
         userId: user.uid,
-        title: title,
+        title: title.trim(),
         fileName: file ? file.name : "pasted_text.txt",
-        extractedText: extractedText,
+        extractedText: extractedText.trim(),
         status: "uploaded",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -165,11 +203,16 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
   const resetUploader = () => {
     setFile(null);
     setTitle("");
-    setIsOcrProcessing(false);
-    setOcrProgress(0);
+    setIsProcessing(false);
+    setProgressPercent(0);
+    setProgressMessage("");
+    setPageCount(null);
     setExtractedText("");
     setPasteText("");
     setError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -181,8 +224,8 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
         </div>
       )}
 
-      {/* State A: File is not selected or OCR under processing / Text empty */}
-      {!extractedText && !isOcrProcessing && (
+      {/* State A: File is not selected and not processing */}
+      {!extractedText && !isProcessing && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="uploader-input-selector">
           {/* Box 1: File OCR Drag n Drop */}
           <div
@@ -202,23 +245,23 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept="image/*,.pdf"
+              accept="application/pdf,image/*,.pdf"
               className="hidden"
               id="uploader-file-input"
             />
             <div className="w-16 h-16 rounded-2xl bg-cyan-950/50 border border-cyan-800/60 flex items-center justify-center mb-6 text-cyan-400">
               <Upload className="w-8 h-8" />
             </div>
-            <h3 className="font-sans font-semibold text-lg text-slate-100">Drag & Drop Study Notes</h3>
+            <h3 className="font-sans font-semibold text-lg text-slate-100">Upload PDF or Handwritten Notes</h3>
             <p className="text-sm text-slate-400 mt-2 max-w-sm">
-              Upload handwritten notes images, slides screenshots, or exam sheets (PNG, JPG, PDF) to run instant optical AI scanning.
+              Upload textbook PDFs, syllabus slides, lecture handouts, or note photos (PDF, PNG, JPG) to extract full multi-page document text.
             </p>
-            <span className="text-xs font-mono text-cyan-500 bg-cyan-950/30 border border-cyan-900/40 px-3 py-1.5 rounded-full mt-6">
-              Tesseract OCR Engine Armed
+            <span className="text-xs font-mono text-cyan-500 bg-cyan-950/30 border border-cyan-900/40 px-3 py-1.5 rounded-full mt-6 flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5" /> Full Multi-Page Document Parser Active
             </span>
           </div>
 
-          {/* Box 2: Manual Text Copy Paste (Ultimate Fail-Safe) */}
+          {/* Box 2: Manual Text Copy Paste */}
           <div className="p-8 rounded-3xl border border-slate-800 bg-slate-900/20 backdrop-blur-md flex flex-col justify-between min-h-[340px]" id="manual-paste-zone">
             <div>
               <div className="flex items-center gap-3 mb-4">
@@ -249,8 +292,8 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
         </div>
       )}
 
-      {/* OCR processing active */}
-      {isOcrProcessing && (
+      {/* Extraction / OCR processing active */}
+      {isProcessing && (
         <div className="border border-slate-800 p-12 rounded-3xl bg-slate-900/20 backdrop-blur-md text-center flex flex-col items-center justify-center" id="ocr-progress-card">
           <div className="relative w-20 h-20 mb-6" id="ocr-pulse">
             <motion.div
@@ -260,19 +303,19 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
             />
             <div className="absolute inset-4 rounded-full border-t-2 border-r-2 border-cyan-400 animate-spin" />
           </div>
-          <h3 className="text-xl font-sans font-semibold text-slate-100">Scanning Your Notes</h3>
+          <h3 className="text-xl font-sans font-semibold text-slate-100">Extracting Document Content</h3>
           <p className="text-sm text-slate-400 mt-2 max-w-sm">
-            Tesseract.js OCR is decoding the handwritten structure and text in your screenshot...
+            {progressMessage || "Parsing document pages and extracting text layer..."}
           </p>
           <div className="w-full max-w-sm bg-slate-950 rounded-full h-3 border border-slate-800 mt-6 overflow-hidden" id="ocr-progress-track">
             <motion.div
               className="bg-gradient-to-r from-cyan-400 to-indigo-500 h-full"
               initial={{ width: "0%" }}
-              animate={{ width: `${ocrProgress}%` }}
+              animate={{ width: `${progressPercent}%` }}
               transition={{ ease: "easeInOut" }}
             />
           </div>
-          <span className="text-xs font-mono text-cyan-400 mt-3">{ocrProgress}% Complete</span>
+          <span className="text-xs font-mono text-cyan-400 mt-3">{progressPercent}% Complete</span>
         </div>
       )}
 
@@ -285,8 +328,12 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
                 <CheckCircle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-sans font-semibold text-slate-100 text-lg">OCR Extracted Study Text</h3>
-                <p className="text-xs text-slate-400">Please review and edit the text to refine spelling before pushing to AI</p>
+                <h3 className="font-sans font-semibold text-slate-100 text-lg">
+                  Extracted Document Text {pageCount ? `(${pageCount} Pages)` : ""}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {extractedText.length.toLocaleString()} characters extracted. Review, refine or edit before generating AI study modules.
+                </p>
               </div>
             </div>
             <button
@@ -307,7 +354,7 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Mitosis and Cell Division"
+                placeholder="e.g. Computer Networks - TCP/IP Protocol"
                 className="w-full rounded-xl bg-slate-950/80 border border-slate-800 px-4 py-3 text-sm text-slate-100 font-medium focus:outline-none focus:border-cyan-500"
                 id="review-title-input"
               />
@@ -315,12 +362,12 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
 
             <div>
               <label className="block text-xs font-mono text-slate-400 uppercase tracking-wider mb-2">
-                Editable Study Content
+                Extracted Document Content (Grounded Source for AI)
               </label>
               <textarea
                 value={extractedText}
                 onChange={(e) => setExtractedText(e.target.value)}
-                className="w-full h-80 rounded-2xl bg-slate-950/80 border border-slate-800 p-5 text-sm text-slate-300 font-sans leading-relaxed focus:outline-none focus:border-cyan-500 resize-y"
+                className="w-full h-80 rounded-2xl bg-slate-950/80 border border-slate-800 p-5 text-sm text-slate-300 font-sans leading-relaxed focus:outline-none focus:border-cyan-500 resize-y font-mono"
                 id="review-textarea"
               />
             </div>
@@ -330,7 +377,7 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
             <button
               id="confirm-generate-modules-btn"
               onClick={handleSaveAndGenerate}
-              className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-600 hover:opacity-90 text-white font-semibold py-3.5 px-8 rounded-2xl transition-all cursor-pointer"
+              className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-600 hover:opacity-90 text-white font-semibold py-3.5 px-8 rounded-2xl transition-all cursor-pointer shadow-lg shadow-cyan-500/10"
             >
               Analyze & Generate Study Modules
             </button>

@@ -158,6 +158,7 @@ export default function MindMap({ focusedNote, onUpdateNote }: MindMapProps) {
 
   useEffect(() => {
     if (!focusedNote) return;
+    setError("");
     if (focusedNote.mindMap) return;
 
     const fetchMindmap = async () => {
@@ -178,14 +179,14 @@ export default function MindMap({ focusedNote, onUpdateNote }: MindMapProps) {
         });
       } catch (e: any) {
         console.error(e);
-        setError("AI mindmap compiling failed. Review contents.");
+        setError(e.message || "AI mindmap compiling failed. Review contents.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchMindmap();
-  }, [focusedNote]);
+  }, [focusedNote?.id]);
 
   const handleRecompile = async () => {
     if (!focusedNote) return;
@@ -204,7 +205,7 @@ export default function MindMap({ focusedNote, onUpdateNote }: MindMapProps) {
       });
     } catch (e: any) {
       console.error(e);
-      setError("Failed to recompile AI mindmap.");
+      setError(e.message || "Failed to recompile AI mindmap.");
     } finally {
       setLoading(false);
     }

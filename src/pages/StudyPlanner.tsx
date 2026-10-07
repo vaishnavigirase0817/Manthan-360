@@ -21,6 +21,7 @@ export default function StudyPlanner({ focusedNote, onUpdateNote }: StudyPlanner
 
   useEffect(() => {
     if (!focusedNote) return;
+    setError("");
     if (focusedNote.studyPlan) return;
 
     const fetchPlanner = async () => {
@@ -41,14 +42,14 @@ export default function StudyPlanner({ focusedNote, onUpdateNote }: StudyPlanner
         });
       } catch (e: any) {
         console.error(e);
-        setError("AI Study Plan generation failed. Please recompile.");
+        setError(e.message || "AI Study Plan generation failed. Please retry.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchPlanner();
-  }, [focusedNote]);
+  }, [focusedNote?.id]);
 
   const handleRecompile = async () => {
     if (!focusedNote) return;
@@ -67,7 +68,7 @@ export default function StudyPlanner({ focusedNote, onUpdateNote }: StudyPlanner
       });
     } catch (e: any) {
       console.error(e);
-      setError("Failed to recompile Study Planner.");
+      setError(e.message || "Failed to recompile Study Planner.");
     } finally {
       setLoading(false);
     }

@@ -17,36 +17,43 @@ export default function Flashcards({ focusedNote, onUpdateNote }: FlashcardsProp
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
+  const fetchFlashcards = async () => {
+    if (!focusedNote) return;
+    setLoading(true);
+    setError("");
+    try {
+      const cardsData = await generateNotesFlashcards(focusedNote.extractedText);
+
+      const noteRef = doc(db, "notes", focusedNote.id);
+      await updateDoc(noteRef, {
+        flashcards: cardsData,
+        updatedAt: new Date().toISOString(),
+      });
+
+      onUpdateNote({
+        ...focusedNote,
+        flashcards: cardsData,
+      });
+      setCurrentIndex(0);
+      setIsFlipped(false);
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || "Flashcards generation failed. Review network or parameters.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!focusedNote) return;
-    if (focusedNote.flashcards) return;
+    setError("");
+    setCurrentIndex(0);
+    setIsFlipped(false);
 
-    const fetchFlashcards = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const cardsData = await generateNotesFlashcards(focusedNote.extractedText);
-
-        const noteRef = doc(db, "notes", focusedNote.id);
-        await updateDoc(noteRef, {
-          flashcards: cardsData,
-          updatedAt: new Date().toISOString(),
-        });
-
-        onUpdateNote({
-          ...focusedNote,
-          flashcards: cardsData,
-        });
-      } catch (e: any) {
-        console.error(e);
-        setError("Flashcards processing failed. Review network or parameters.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (focusedNote.flashcards && focusedNote.flashcards.length > 0) return;
 
     fetchFlashcards();
-  }, [focusedNote]);
+  }, [focusedNote?.id]);
 
   const cards = focusedNote?.flashcards || [];
 
@@ -83,22 +90,41 @@ export default function Flashcards({ focusedNote, onUpdateNote }: FlashcardsProp
   return (
     <div className="w-full space-y-6" id="flash-page-container">
       {/* Page Header */}
-      <div className="pointer-events-none" id="flash-page-header">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">
-            Active Recall Deck
-          </span>
+      <div className="flex items-center justify-between pointer-events-none" id="flash-page-header">
+        <div>
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">
+              Active Recall Deck
+            </span>
+          </div>
+          <h2 className="text-2xl font-sans font-black text-white mt-1">Study Flashcards</h2>
         </div>
-        <h2 className="text-2xl font-sans font-black text-white mt-1">Study Flashcards</h2>
+        {cards.length > 0 && (
+          <button
+            onClick={fetchFlashcards}
+            disabled={loading}
+            className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 border border-slate-800 text-xs font-mono rounded-xl text-slate-400 hover:text-white hover:bg-slate-900/80 transition-all cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Regenerate
+          </button>
+        )}
       </div>
 
       {loading && <Loader message="Gemini AI is parsing key statements and formatting interactive card items..." />}
 
       {error && (
-        <div id="flash-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center gap-3 text-red-200 text-sm">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-          <span>{error}</span>
+        <div id="flash-error-banner" className="bg-red-950/40 border border-red-900/60 p-4 rounded-2xl flex items-center justify-between gap-3 text-red-200 text-sm">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={fetchFlashcards}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-xs rounded-xl text-red-100 transition-all cursor-pointer shrink-0"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
         </div>
       )}
 

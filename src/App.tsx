@@ -129,7 +129,7 @@ function AppContent() {
           !user ? (
             <Navigate to="/" replace />
           ) : (
-            <div className="min-h-screen bg-[#020617] flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200 relative text-slate-100 overflow-x-hidden" id="edu-flow-app">
+            <div className="min-h-screen bg-[#020617] flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200 relative text-slate-100 overflow-x-hidden" id="manthan-360-app">
               {/* Background Decorative Elements */}
               <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/20 rounded-full blur-[120px] pointer-events-none z-0" />
               <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none z-0" />
