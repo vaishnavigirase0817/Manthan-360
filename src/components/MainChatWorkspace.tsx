@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FirebaseUser, Note, ChatMessage } from "../types";
 import { getTutorCorrection } from "../services/api";
 import { db } from "../services/firebase";
@@ -6,6 +6,8 @@ import { doc, getDocs, setDoc, query, collection, where } from "firebase/firesto
 import DocumentContextBar from "./DocumentContextBar";
 import ChatComposer from "./ChatComposer";
 import Loader from "./Loader";
+import ManthanLogo from "./ManthanLogo";
+import { analyzeContentSuitability, ContentSuitability } from "../services/contentAnalyzer";
 import {
   Sparkles,
   User,
@@ -26,6 +28,8 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  HelpCircle as QuestionIcon,
+  Zap,
 } from "lucide-react";
 
 interface MainChatWorkspaceProps {
@@ -53,6 +57,12 @@ export default function MainChatWorkspace({
   const [lastQuery, setLastQuery] = useState("");
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  // Content suitability intelligence
+  const suitability: ContentSuitability | null = useMemo(() => {
+    if (!focusedNote) return null;
+    return analyzeContentSuitability(focusedNote.extractedText);
+  }, [focusedNote?.id, focusedNote?.extractedText]);
 
   const sessionId = focusedNote && user ? `chat_${focusedNote.id}_${user.uid}` : "";
 
@@ -84,10 +94,19 @@ export default function MainChatWorkspace({
           }
         }
 
-        // Default initial greeting for new document
+        // Default initial greeting customized by content intelligence
+        let welcomeText = `I've analyzed your study material "${focusedNote.title}".`;
+        if (suitability && !suitability.isValid) {
+          welcomeText = `I processed "${focusedNote.title}", but couldn't find enough readable study content. The file might be blank or too low-resolution for text extraction.`;
+        } else if (suitability && suitability.isShort) {
+          welcomeText = `I've analyzed your concise notes on "${focusedNote.title}". What would you like to review?`;
+        } else {
+          welcomeText = `I've processed your study material "${focusedNote.title}". What would you like to do with it?`;
+        }
+
         const welcomeMsg: ChatMessage = {
           role: "assistant",
-          content: `I've processed your study material "${focusedNote.title}". What would you like to do with it?`,
+          content: welcomeText,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
 
@@ -98,7 +117,7 @@ export default function MainChatWorkspace({
     };
 
     loadSession();
-  }, [focusedNote, user, sessionId]);
+  }, [focusedNote?.id, user?.uid, sessionId, suitability?.isValid]);
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -106,7 +125,7 @@ export default function MainChatWorkspace({
     setError("");
     setLastQuery(text.trim());
 
-    // 1. Immediately render user's message optimistically
+    // 1. PATH A / B: Immediately render user's message optimistically
     const userMsg: ChatMessage = {
       role: "user",
       content: text.trim(),
@@ -118,7 +137,8 @@ export default function MainChatWorkspace({
     setLoading(true);
 
     try {
-      const extractedContent = focusedNote?.extractedText || focusedNote?.summary?.shortSummary || "";
+      // Document context is only passed if a valid note exists
+      const extractedContent = (suitability?.isValid && focusedNote?.extractedText) ? focusedNote.extractedText : "";
       const aiResponseText = await getTutorCorrection(newHistory, extractedContent);
 
       const aiMsg: ChatMessage = {
@@ -155,18 +175,26 @@ export default function MainChatWorkspace({
   };
 
   const handleActionClick = (actionType: string) => {
-    if (actionInProgress) return; // Prevent duplicate clicks
+    if (actionInProgress) return;
     setActionInProgress(actionType);
 
     if (actionType === "explain_simply") {
-      handleSendMessage("Explain this study material simply with intuitive examples.");
+      handleSendMessage("Explain this simply with intuitive examples.");
+    } else if (actionType === "give_example") {
+      handleSendMessage("Give me a practical real-world example of this concept.");
+    } else if (actionType === "test_me") {
+      if (focusedNote && suitability?.isValid) {
+        setActiveTab("quiz");
+      } else {
+        handleSendMessage("Test me with 3 practice questions on this topic.");
+      }
     } else {
       setActiveTab(actionType);
     }
 
     setTimeout(() => {
       setActionInProgress(null);
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -184,18 +212,15 @@ export default function MainChatWorkspace({
 
       {/* Main Conversation Flow Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 space-y-6 max-w-4xl mx-auto w-full no-scrollbar">
-        {/* Welcome State when no note or new chat session */}
+        {/* Welcome State when no note is focused */}
         {!focusedNote && (
           <div className="flex flex-col items-center justify-center py-10 text-center animate-fade-in" id="workspace-welcome-state">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-xl shadow-violet-500/25 mb-4">
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="mb-4">
+              <ManthanLogo size="lg" />
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
-              Manthan360
-            </h1>
-            <p className="text-sm sm:text-base text-slate-300 mt-2 max-w-md">
-              Your AI-powered study companion that lives with you through your learning journey.
+            <p className="text-sm sm:text-base text-slate-300 light:text-rose-900 mt-2 max-w-md font-sans">
+              Your AI-powered study companion. Upload your study material or ask me what you want to learn.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
@@ -203,7 +228,7 @@ export default function MainChatWorkspace({
                 type="button"
                 id="welcome-upload-notes-btn"
                 onClick={() => setActiveTab("upload")}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium text-sm shadow-lg shadow-violet-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 light:from-rose-800 light:to-rose-950 hover:from-violet-500 hover:to-indigo-500 light:hover:from-rose-700 text-white font-medium text-sm shadow-lg shadow-violet-500/20 light:shadow-rose-900/20 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <UploadCloud className="w-4 h-4" />
                 Upload Notes
@@ -213,37 +238,59 @@ export default function MainChatWorkspace({
                 type="button"
                 id="welcome-ask-manthan-btn"
                 onClick={() => handleSendMessage("How can you help me study effectively?")}
-                className="px-5 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-white/10 hover:border-violet-500/30 font-medium text-sm transition-all flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-slate-900/90 light:bg-white hover:bg-slate-800 light:hover:bg-rose-50 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 font-medium text-sm transition-all flex items-center gap-2 cursor-pointer shadow-sm"
               >
-                <Sparkles className="w-4 h-4 text-violet-400" />
+                <Sparkles className="w-4 h-4 text-violet-400 light:text-rose-700" />
                 Ask Manthan360
               </button>
             </div>
 
             {/* Suggested Starter Actions */}
-            <div className="mt-10 w-full max-w-lg text-left bg-slate-900/60 border border-white/10 rounded-2xl p-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" /> Suggested Actions
+            <div className="mt-10 w-full max-w-lg text-left bg-slate-900/60 light:bg-white border border-white/10 light:border-rose-900/15 rounded-2xl p-4 shadow-sm">
+              <p className="text-xs font-semibold text-slate-400 light:text-rose-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-violet-400 light:text-rose-700" /> Suggested Actions
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
-                  { label: "Summarize a chapter", prompt: "Explain the best method to summarize dense textbook chapters." },
-                  { label: "Create flashcards", prompt: "How should I structure flashcards for maximum active recall retention?" },
-                  { label: "Generate practice quiz", prompt: "What question formats are most effective for self-testing?" },
-                  { label: "Create a mind map", prompt: "How can visual mind maps help me connect complex engineering concepts?" },
+                  { label: "Explain active recall", prompt: "What is active recall and how does it improve retention?" },
+                  { label: "Explain recursion simply", prompt: "Explain recursion simply with an intuitive example." },
+                  { label: "TCP vs UDP differences", prompt: "What is the key difference between TCP and UDP protocols?" },
+                  { label: "7-day exam prep strategy", prompt: "How do I prepare effectively for an exam in 7 days?" },
                 ].map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleSendMessage(item.prompt)}
-                    className="p-2.5 rounded-xl bg-slate-800/60 hover:bg-violet-950/40 text-slate-300 hover:text-white border border-white/5 hover:border-violet-500/30 text-xs text-left transition-all cursor-pointer flex items-center justify-between"
+                    className="p-2.5 rounded-xl bg-slate-800/60 light:bg-rose-50/70 hover:bg-violet-950/40 light:hover:bg-rose-100 text-slate-300 light:text-rose-950 hover:text-white border border-white/5 light:border-rose-900/10 text-xs text-left transition-all cursor-pointer flex items-center justify-between"
                   >
                     <span>{item.label}</span>
-                    <ArrowRight className="w-3 h-3 text-slate-500" />
+                    <ArrowRight className="w-3 h-3 text-slate-500 light:text-rose-600" />
                   </button>
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Blank / Invalid Document Warning Banner if content is unusable */}
+        {focusedNote && suitability && !suitability.isValid && (
+          <div className="p-4 rounded-2xl bg-amber-950/30 light:bg-amber-50 border border-amber-500/30 light:border-amber-300 text-amber-200 light:text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in" id="invalid-doc-banner">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-400 light:text-amber-700 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold">{suitability.statusMessage}</p>
+                <p className="text-[11px] text-amber-300/80 light:text-amber-800 mt-0.5">
+                  No learning resources were manufactured to preserve accurate grounding.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("upload")}
+              className="px-3 py-1.5 rounded-xl bg-amber-600/30 hover:bg-amber-600/50 light:bg-amber-600 light:hover:bg-amber-700 light:text-white text-amber-100 border border-amber-500/40 text-xs font-medium transition-all cursor-pointer shrink-0"
+            >
+              Upload Another File
+            </button>
           </div>
         )}
 
@@ -260,7 +307,7 @@ export default function MainChatWorkspace({
               }`}
             >
               {!isUser && (
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 light:from-rose-800 light:to-rose-950 flex items-center justify-center shadow-md shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -268,99 +315,144 @@ export default function MainChatWorkspace({
               <div
                 className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed ${
                   isUser
-                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/10 rounded-br-sm"
-                    : "bg-slate-900/90 text-slate-200 border border-white/10 shadow-md rounded-bl-sm"
+                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 light:from-rose-800 light:to-rose-950 text-white shadow-lg shadow-violet-500/10 light:shadow-rose-900/10 rounded-br-sm"
+                    : "bg-slate-900/90 light:bg-white text-slate-200 light:text-slate-900 border border-white/10 light:border-rose-900/15 shadow-md rounded-bl-sm"
                 }`}
               >
                 {!isUser && (
-                  <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/5">
-                    <span className="font-semibold text-xs text-violet-300">Manthan360</span>
+                  <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/5 light:border-rose-900/10">
+                    <span className="font-semibold text-xs text-violet-300 light:text-rose-900">Manthan360</span>
                     {msg.timestamp && (
-                      <span className="text-[10px] text-slate-400 font-mono">{msg.timestamp}</span>
+                      <span className="text-[10px] text-slate-400 light:text-slate-700 font-mono">{msg.timestamp}</span>
                     )}
                   </div>
                 )}
 
                 <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
 
-                {/* If it's an AI message responding to a note, provide quick action shortcuts */}
-                {!isUser && focusedNote && (
-                  <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      id={`msg-action-summary-${idx}`}
-                      onClick={() => handleActionClick("summary")}
-                      disabled={!!actionInProgress}
-                      className="px-2.5 py-1 rounded-lg bg-violet-950/60 hover:bg-violet-900/80 text-violet-200 border border-violet-500/30 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <FileText className="w-3 h-3" /> Summary
-                    </button>
-                    <button
-                      type="button"
-                      id={`msg-action-flashcards-${idx}`}
-                      onClick={() => handleActionClick("flashcards")}
-                      disabled={!!actionInProgress}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Layers className="w-3 h-3" /> Flashcards
-                    </button>
-                    <button
-                      type="button"
-                      id={`msg-action-quiz-${idx}`}
-                      onClick={() => handleActionClick("quiz")}
-                      disabled={!!actionInProgress}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Award className="w-3 h-3" /> Quiz
-                    </button>
-                    <button
-                      type="button"
-                      id={`msg-action-mindmap-${idx}`}
-                      onClick={() => handleActionClick("mindmap")}
-                      disabled={!!actionInProgress}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <GitGraph className="w-3 h-3" /> Mind Map
-                    </button>
-                    <button
-                      type="button"
-                      id={`msg-action-flowchart-${idx}`}
-                      onClick={() => handleActionClick("flowchart")}
-                      disabled={!!actionInProgress}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Share2 className="w-3 h-3" /> Flowchart
-                    </button>
+                {/* Follow-up & Dynamic Learning Action Buttons */}
+                {!isUser && (
+                  <div className="mt-3 pt-3 border-t border-white/10 light:border-rose-900/10 flex flex-wrap gap-2">
+                    {/* If valid document is attached, show its tailored features */}
+                    {focusedNote && suitability?.isValid ? (
+                      <>
+                        {suitability.recommendedFeatures.includes("summary") && (
+                          <button
+                            type="button"
+                            onClick={() => handleActionClick("summary")}
+                            disabled={!!actionInProgress}
+                            className="px-2.5 py-1 rounded-lg bg-violet-950/60 light:bg-rose-100 hover:bg-violet-900/80 light:hover:bg-rose-200 text-violet-200 light:text-rose-950 border border-violet-500/30 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <FileText className="w-3 h-3" /> Summary
+                          </button>
+                        )}
+                        {suitability.recommendedFeatures.includes("flashcards") && (
+                          <button
+                            type="button"
+                            onClick={() => handleActionClick("flashcards")}
+                            disabled={!!actionInProgress}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <Layers className="w-3 h-3" /> Flashcards
+                          </button>
+                        )}
+                        {suitability.recommendedFeatures.includes("quiz") && (
+                          <button
+                            type="button"
+                            onClick={() => handleActionClick("quiz")}
+                            disabled={!!actionInProgress}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <Award className="w-3 h-3" /> Quiz
+                          </button>
+                        )}
+                        {suitability.recommendedFeatures.includes("mindmap") && (
+                          <button
+                            type="button"
+                            onClick={() => handleActionClick("mindmap")}
+                            disabled={!!actionInProgress}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <GitGraph className="w-3 h-3" /> Mind Map
+                          </button>
+                        )}
+                        {suitability.recommendedFeatures.includes("flowchart") && (
+                          <button
+                            type="button"
+                            onClick={() => handleActionClick("flowchart")}
+                            disabled={!!actionInProgress}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <Share2 className="w-3 h-3" /> Flowchart
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      /* Free-form conversational follow-up suggestions */
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick("give_example")}
+                          disabled={!!actionInProgress}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Sparkles className="w-3 h-3" /> Give Example
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick("explain_simply")}
+                          disabled={!!actionInProgress}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <QuestionIcon className="w-3 h-3" /> Explain Simply
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick("test_me")}
+                          disabled={!!actionInProgress}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Award className="w-3 h-3" /> Test Me
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
 
               {isUser && (
-                <div className="w-8 h-8 rounded-xl bg-slate-800 border border-violet-500/30 flex items-center justify-center shadow-md shrink-0 mt-1">
-                  <User className="w-4 h-4 text-slate-300" />
+                <div className="w-8 h-8 rounded-xl bg-slate-800 light:bg-rose-900 border border-violet-500/30 light:border-rose-700 flex items-center justify-center shadow-md shrink-0 mt-1">
+                  <User className="w-4 h-4 text-slate-300 light:text-white" />
                 </div>
               )}
             </div>
           );
         })}
 
-        {/* Instant Thinking Bubble */}
+        {/* Lightweight Instant Thinking Bubble for Normal and Document Chat */}
         {loading && (
           <div className="flex gap-3 animate-fade-in" id="chat-thinking-indicator">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0 mt-1">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 light:from-rose-800 light:to-rose-950 flex items-center justify-center shadow-md shrink-0 mt-1">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-slate-900/90 border border-white/10 rounded-2xl rounded-bl-sm p-4">
-              <Loader message="Manthan360 is thinking and analyzing your study context..." step={2} />
+            <div className="bg-slate-900/90 light:bg-white border border-white/10 light:border-rose-900/15 rounded-2xl rounded-bl-sm p-4">
+              <Loader
+                message={
+                  focusedNote && suitability?.isValid
+                    ? "Manthan360 is analyzing your study material context..."
+                    : "Thinking…"
+                }
+                step={focusedNote ? 2 : 1}
+              />
             </div>
           </div>
         )}
 
         {/* Error Notification with Inline Retry */}
         {error && (
-          <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center justify-between gap-2 animate-fade-in">
+          <div className="p-3 bg-rose-950/40 light:bg-rose-100 border border-rose-500/30 light:border-rose-300 rounded-xl text-rose-300 light:text-rose-900 text-xs flex items-center justify-between gap-2 animate-fade-in">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 light:text-rose-700" />
               <span>{error}</span>
             </div>
             {lastQuery && (
@@ -369,7 +461,7 @@ export default function MainChatWorkspace({
                 id="chat-retry-btn"
                 onClick={handleRetryLastQuery}
                 disabled={loading}
-                className="px-3 py-1 bg-rose-900/60 hover:bg-rose-900/90 border border-rose-700/50 rounded-lg text-rose-100 text-xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                className="px-3 py-1 bg-rose-900/60 light:bg-rose-800 hover:bg-rose-900 light:hover:bg-rose-900 border border-rose-700/50 rounded-lg text-rose-100 text-xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
               >
                 <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Retry
               </button>
@@ -386,9 +478,9 @@ export default function MainChatWorkspace({
         onAttachClick={() => setActiveTab("upload")}
         onSuggestionClick={handleActionClick}
         isLoading={loading}
-        hasDocument={!!focusedNote}
+        hasDocument={!!focusedNote && (suitability?.isValid ?? false)}
         placeholder={
-          focusedNote
+          focusedNote && suitability?.isValid
             ? `Ask Manthan360 about "${focusedNote.title}"...`
             : "Ask Manthan360 anything or upload notes..."
         }

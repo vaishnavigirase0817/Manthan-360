@@ -6,6 +6,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { FirebaseUser, Note } from "../types";
 import { extractTextFromPdf, ExtractionProgress } from "../services/pdfExtractor";
+import { analyzeContentSuitability } from "../services/contentAnalyzer";
 
 interface NoteUploaderProps {
   user: FirebaseUser | null;
@@ -161,8 +162,9 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
       setError("Please supply a study title or topic name.");
       return;
     }
-    if (!extractedText.trim() || extractedText.trim().length < 15) {
-      setError("Notes must contain readable extracted text before generating study material.");
+    const quality = analyzeContentSuitability(extractedText);
+    if (!quality.isValid) {
+      setError(quality.statusMessage);
       return;
     }
 

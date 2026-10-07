@@ -469,7 +469,7 @@ Generate a sequential process flowchart reflecting the workflow/lifecycle in thi
   }
 });
 
-// AI Tutor Chat Route
+// AI Tutor / Conversational Study Companion Route
 app.post("/api/gemini/tutor", async (req, res) => {
   try {
     const { messages, context, language = "English" } = req.body;
@@ -485,29 +485,36 @@ app.post("/api/gemini/tutor", async (req, res) => {
       });
     });
 
-    const systemInstruction = `You are "Manthan360 Tutor", an empathetic and knowledgeable educational mentor.
-Your job is to clarify topics and explain concepts STRICTLY regarding the student's study material provided below.
-You MUST respond ONLY using the facts, details, formulas, and context present in the Study Document Content.
-If a question is off-topic or cannot be answered from the document, politely reply: "I can only answer questions related to your uploaded notes document."
-Be structured, clear, and student-friendly.
-Target language: ${language}.
+    const hasDocumentContext = context && typeof context === "string" && context.trim().length >= 15;
 
-STUDY DOCUMENT CONTENT:
+    const systemInstruction = hasDocumentContext
+      ? `You are "Manthan360", an empathetic, brilliant AI study companion and academic mentor.
+The student has provided their active study material context below.
+When the student asks questions directly concerning this material, ground your explanation accurately in the provided document content.
+If the student asks for beginner analogies, practical examples, step-by-step breakdowns, exam tips, or related explanations, explain them clearly and pedagogically.
+Use structured, clean markdown formatting with bullet points and bold highlights.
+Language: ${language}.
+
+STUDY DOCUMENT CONTEXT:
 <<<
-${context || "No document uploaded."}
->>>`;
+${context.trim()}
+>>>`
+      : `You are "Manthan360", an empathetic, brilliant AI study companion and academic mentor.
+Help the student learn, master difficult subjects, explain topics simply, provide intuitive real-world examples, and structure their study strategies.
+Be structured, encouraging, and clear with clean markdown formatting.
+Language: ${language}.`;
 
     const response = await generateContentWithFallback({
       contents: contents,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.3,
+        temperature: 0.4,
       },
     });
 
     res.json({ text: response.text || "" });
   } catch (error: any) {
-    handleApiError(res, error, "Failed to get tutor response");
+    handleApiError(res, error, "Failed to get chat response");
   }
 });
 

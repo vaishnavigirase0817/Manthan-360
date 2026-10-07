@@ -9,6 +9,7 @@ import MobileLearningMenu from "./components/MobileLearningMenu";
 import MainChatWorkspace from "./components/MainChatWorkspace";
 import Loader from "./components/Loader";
 import { checkAndTickStreak } from "./services/gamification";
+import { ThemeProvider } from "./context/ThemeContext";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { MessageSquare, X, Sparkles } from "lucide-react";
 
@@ -410,8 +411,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </ThemeProvider>
   );
 }

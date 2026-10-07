@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   LayoutDashboard,
   UploadCloud,
@@ -16,13 +16,12 @@ import {
   PanelLeftClose,
   PanelLeft,
   BookOpen,
-  Sparkles,
-  HelpCircle,
   Clock,
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { TRANSLATIONS } from "../translations";
 import { Note } from "../types";
+import ManthanLogo from "./ManthanLogo";
 
 interface SidebarProps {
   activeTab: string;
@@ -80,21 +79,7 @@ export default function Sidebar({
         }`}
         id="sidebar-logo-container"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/25 shrink-0">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          {!isCollapsed && (
-            <div className="min-w-0">
-              <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400 block truncate">
-                Manthan360
-              </span>
-              <span className="text-[10px] text-violet-400/90 font-mono tracking-wider block">
-                AI Companion
-              </span>
-            </div>
-          )}
-        </div>
+        <ManthanLogo iconOnly={isCollapsed} size={isCollapsed ? "sm" : "md"} />
 
         {onToggleCollapse && (
           <button
@@ -102,7 +87,7 @@ export default function Sidebar({
             id="sidebar-collapse-toggle"
             onClick={onToggleCollapse}
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 light:text-rose-800 hover:text-white light:hover:text-rose-950 hover:bg-white/10 light:hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
           >
             {isCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
           </button>
@@ -124,8 +109,8 @@ export default function Sidebar({
           title="Start a New Study Session"
           className={`w-full flex items-center justify-center gap-2.5 rounded-xl font-medium text-xs transition-all shadow-md cursor-pointer ${
             isCollapsed
-              ? "p-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white"
-              : "px-3.5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-violet-500/20"
+              ? "p-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 light:from-rose-800 light:to-rose-950 hover:from-violet-500 hover:to-indigo-500 light:hover:from-rose-700 text-white"
+              : "px-3.5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 light:from-rose-800 light:to-rose-950 hover:from-violet-500 hover:to-indigo-500 light:hover:from-rose-700 text-white shadow-violet-500/20 light:shadow-rose-900/20"
           }`}
         >
           <PlusCircle className="w-4 h-4 shrink-0" />
@@ -136,7 +121,7 @@ export default function Sidebar({
       {/* Learning Tools Section */}
       <div className="flex-1 overflow-y-auto no-scrollbar w-full space-y-1" id="sidebar-nav">
         {!isCollapsed && (
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1">
+          <p className="text-[11px] font-semibold text-slate-400 light:text-rose-900 uppercase tracking-wider px-3 py-1">
             Learning Tools
           </p>
         )}
@@ -161,26 +146,30 @@ export default function Sidebar({
                 isCollapsed ? "p-3 justify-center" : "px-3 py-2.5"
               } ${
                 isActive
-                  ? "bg-violet-600/20 text-white border border-violet-500/40 shadow-sm font-semibold"
+                  ? "bg-violet-600/20 light:bg-rose-100 text-white light:text-rose-950 border border-violet-500/40 light:border-rose-900/30 shadow-sm font-semibold"
                   : locked
-                  ? "opacity-35 cursor-not-allowed text-slate-600 hover:bg-transparent"
-                  : "hover:bg-white/5 text-slate-300 hover:text-white border border-transparent"
+                  ? "opacity-35 cursor-not-allowed text-slate-600 light:text-slate-400 hover:bg-transparent"
+                  : "hover:bg-white/5 light:hover:bg-rose-50 text-slate-300 light:text-rose-900 hover:text-white light:hover:text-rose-950 border border-transparent"
               }`}
             >
               <Icon
                 className={`w-4 h-4 shrink-0 ${
-                  isActive ? "text-violet-400" : locked ? "text-slate-600" : "text-slate-400"
+                  isActive
+                    ? "text-violet-400 light:text-rose-800"
+                    : locked
+                    ? "text-slate-600 light:text-slate-400"
+                    : "text-slate-400 light:text-rose-700"
                 }`}
               />
               {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
               {!isCollapsed && locked && (
-                <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">
+                <span className="text-[9px] bg-slate-800 light:bg-rose-100 text-slate-400 light:text-rose-800 px-1.5 py-0.5 rounded font-mono">
                   Note Req.
                 </span>
               )}
               {isActive && (
                 <div
-                  className={`w-1.5 h-1.5 rounded-full bg-violet-400 shadow-sm shadow-violet-400 ${
+                  className={`w-1.5 h-1.5 rounded-full bg-violet-400 light:bg-rose-700 shadow-sm ${
                     isCollapsed ? "absolute top-2 right-2" : "shrink-0"
                   }`}
                 />
@@ -189,20 +178,20 @@ export default function Sidebar({
           );
         })}
 
-        {/* Recent Sessions list (if available and not collapsed) */}
+        {/* Recent Sessions list */}
         {!isCollapsed && recentNotes.length > 0 && (
-          <div className="pt-4 space-y-1 border-t border-white/5 mt-4">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1 flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-slate-400" /> Recent Notes
+          <div className="pt-4 space-y-1 border-t border-white/5 light:border-rose-900/10 mt-4">
+            <p className="text-[11px] font-semibold text-slate-400 light:text-rose-900 uppercase tracking-wider px-3 py-1 flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-slate-400 light:text-rose-700" /> Recent Notes
             </p>
             {recentNotes.slice(0, 4).map((note) => (
               <button
                 key={note.id}
                 id={`sidebar-recent-note-${note.id}`}
                 onClick={() => onSelectRecentNote && onSelectRecentNote(note)}
-                className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-white/5 truncate transition-colors flex items-center gap-2 cursor-pointer"
+                className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-400 light:text-rose-900 hover:text-slate-200 light:hover:text-rose-950 hover:bg-white/5 light:hover:bg-rose-100 truncate transition-colors flex items-center gap-2 cursor-pointer"
               >
-                <BookOpen className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                <BookOpen className="w-3.5 h-3.5 shrink-0 text-slate-400 light:text-rose-700" />
                 <span className="truncate">{note.title || "Untitled Note"}</span>
               </button>
             ))}
@@ -211,7 +200,7 @@ export default function Sidebar({
       </div>
 
       {/* Lower Section */}
-      <div className="w-full pt-3 border-t border-white/10 space-y-1 mt-auto" id="sidebar-bottom-section">
+      <div className="w-full pt-3 border-t border-white/10 light:border-rose-900/10 space-y-1 mt-auto" id="sidebar-bottom-section">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -225,11 +214,11 @@ export default function Sidebar({
                 isCollapsed ? "p-3 justify-center" : "px-3 py-2.5"
               } ${
                 isActive
-                  ? "bg-white/10 text-white border border-white/10"
-                  : "text-slate-400 hover:text-white hover:bg-white/5"
+                  ? "bg-white/10 light:bg-rose-100 text-white light:text-rose-950 border border-white/10 light:border-rose-900/20"
+                  : "text-slate-400 light:text-rose-900 hover:text-white light:hover:text-rose-950 hover:bg-white/5 light:hover:bg-rose-100"
               }`}
             >
-              <Icon className="w-4 h-4 shrink-0 text-slate-400" />
+              <Icon className="w-4 h-4 shrink-0 text-slate-400 light:text-rose-700" />
               {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
             </button>
           );

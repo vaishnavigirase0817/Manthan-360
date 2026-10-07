@@ -7,6 +7,130 @@
   --font-display: "Space Grotesk", sans-serif;
 }
 
+:root {
+  /* Default Dark Mode Variables */
+  --bg-main: #020617;
+  --bg-surface: #0b1126;
+  --bg-surface-elevated: #111833;
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(168, 85, 247, 0.4);
+  --accent-gradient: linear-gradient(135deg, #7c3aed, #4f46e5);
+  --accent-solid: #7c3aed;
+  --accent-soft: rgba(124, 58, 237, 0.15);
+}
+
+/* Light Mode — Maroon Theme Specification */
+html.light, body.light {
+  --bg-main: #fbf9f8;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #fdf5f6;
+  --text-main: #1e080d;
+  --text-secondary: #4a1d24;
+  --text-muted: #783d47;
+  --border-subtle: rgba(136, 19, 55, 0.12);
+  --border-active: rgba(136, 19, 55, 0.35);
+  --accent-gradient: linear-gradient(135deg, #881337, #9f1239);
+  --accent-solid: #881337;
+  --accent-soft: rgba(136, 19, 55, 0.08);
+
+  background-color: #fbf9f8 !important;
+  color: #1e080d !important;
+}
+
+/* Light Mode Global Component Overrides */
+html.light #manthan-360-app {
+  background-color: #fbf9f8 !important;
+  color: #1e080d !important;
+}
+
+html.light #main-navbar {
+  background-color: rgba(253, 245, 246, 0.9) !important;
+  border-bottom-color: rgba(136, 19, 55, 0.12) !important;
+  color: #1e080d !important;
+}
+
+html.light #side-bar {
+  background-color: #fdf5f6 !important;
+  border-right-color: rgba(136, 19, 55, 0.12) !important;
+  color: #1e080d !important;
+}
+
+html.light #side-bar button {
+  color: #4a1d24 !important;
+}
+
+html.light #side-bar button:hover {
+  background-color: rgba(136, 19, 55, 0.08) !important;
+  color: #881337 !important;
+}
+
+html.light #main-chat-workspace {
+  background-color: #fbf9f8 !important;
+}
+
+html.light #chat-composer-container {
+  background: linear-gradient(to top, #fbf9f8 70%, rgba(251, 249, 248, 0.9) 90%, transparent 100%) !important;
+}
+
+html.light #chat-composer-container .bg-slate-900\/90 {
+  background-color: #ffffff !important;
+  border-color: rgba(136, 19, 55, 0.18) !important;
+  box-shadow: 0 10px 25px -5px rgba(136, 19, 55, 0.1) !important;
+}
+
+html.light #composer-text-input {
+  color: #1e080d !important;
+}
+
+html.light #composer-text-input::placeholder {
+  color: #881337 !important;
+  opacity: 0.6 !important;
+}
+
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-950 {
+  background-color: #ffffff !important;
+  border-color: rgba(136, 19, 55, 0.12) !important;
+  color: #1e080d !important;
+}
+
+html.light .text-slate-100,
+html.light .text-slate-200,
+html.light .text-white {
+  color: #1e080d !important;
+}
+
+html.light .text-slate-300,
+html.light .text-slate-400 {
+  color: #4a1d24 !important;
+}
+
+html.light .text-slate-500,
+html.light .text-slate-600 {
+  color: #783d47 !important;
+}
+
+html.light .border-white\/10,
+html.light .border-white\/5,
+html.light .border-white\/15 {
+  border-color: rgba(136, 19, 55, 0.12) !important;
+}
+
+html.light #document-context-bar {
+  background-color: #fdf5f6 !important;
+  border-color: rgba(136, 19, 55, 0.18) !important;
+}
+
+html.light #mobile-learning-menu-panel {
+  background-color: #fdf5f6 !important;
+  border-top-color: rgba(136, 19, 55, 0.2) !important;
+}
+
 /* 3D Flashcard Flipping Utensils */
 .perspective {
   perspective: 1000px;
