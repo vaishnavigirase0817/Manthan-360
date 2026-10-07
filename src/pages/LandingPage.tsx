@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { loginWithGoogle } from "../services/firebase";
+import ManthanLogo from "../components/ManthanLogo";
 
 interface LandingPageProps {
   onLoginSuccess: (user: any) => void;
@@ -177,15 +178,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
       {/* TOP HEADER MENU */}
       <header className="border-b border-white/5 bg-slate-950/10 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center justify-between" id="landing-header">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <span className="font-sans font-black text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400">
-              Manthan360
-            </span>
-            <p className="text-[10px] text-slate-400 font-mono tracking-wider">Upload Once. Learn Forever.</p>
-          </div>
+          <ManthanLogo size="md" />
         </div>
 
         <div className="flex items-center gap-4">
