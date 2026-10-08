@@ -33,7 +33,7 @@ export default function TopFeatureBar({
   const { selectedLanguage } = useLanguage();
   const t = getTranslation(selectedLanguage);
 
-  const tools = [
+  const allTools = [
     { id: "chat", label: t.studyChatbot, icon: MessageSquare, requiresNote: false },
     { id: "summary", label: t.summary, icon: FileText, requiresNote: true },
     { id: "flashcards", label: t.flashcards, icon: Layers, requiresNote: true },
@@ -44,6 +44,16 @@ export default function TopFeatureBar({
     { id: "export", label: t.presentation, icon: DownloadCloud, requiresNote: true },
     { id: "upload", label: t.uploadButton, icon: UploadCloud, requiresNote: false },
   ];
+
+  // Filter tools based on suitability - hide unsuitable features for non-educational documents
+  const tools = allTools.filter((tool) => {
+    if (!tool.requiresNote) return true;
+    if (!focusedNote || !suitability) return true;
+    if (suitability.unsuitableFeatures.includes(tool.id)) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div
@@ -95,7 +105,7 @@ export default function TopFeatureBar({
         <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-white/10 light:border-rose-900/10 text-[11px] text-slate-400 light:text-rose-900 truncate shrink-0">
           <Sparkles className="w-3.5 h-3.5 text-violet-400 light:text-rose-700 shrink-0" />
           <span className="truncate max-w-[200px]">
-            Context: <strong className="text-slate-200 light:text-rose-950">{focusedNote.title}</strong>
+            {suitability.categoryLabel}: <strong className="text-slate-200 light:text-rose-950">{focusedNote.title}</strong>
           </span>
         </div>
       )}

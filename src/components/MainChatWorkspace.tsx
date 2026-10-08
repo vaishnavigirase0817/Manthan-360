@@ -65,17 +65,25 @@ export default function MainChatWorkspace({
   const [lastQuery, setLastQuery] = useState("");
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [lastCitations, setLastCitations] = useState<string[]>([]);
+  const [chatMode, setChatMode] = useState<"simple" | "study">(focusedNote ? "study" : "simple");
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const { selectedLanguage } = useLanguage();
   const t = getTranslation(selectedLanguage);
 
+  // Automatically switch to Study Mode when a document is active
+  useEffect(() => {
+    if (focusedNote) {
+      setChatMode("study");
+    }
+  }, [focusedNote?.id]);
+
   // Document suitability intelligence
   const suitability: ContentSuitability | null = useMemo(() => {
     if (!focusedNote) return null;
-    return analyzeContentSuitability(focusedNote.extractedText);
-  }, [focusedNote?.id, focusedNote?.extractedText]);
+    return analyzeContentSuitability(focusedNote.extractedText, focusedNote.fileName);
+  }, [focusedNote?.id, focusedNote?.extractedText, focusedNote?.fileName]);
 
-  // Scalable Document Chunks (RAG-lite)
+  // Scalable Document Chunks (RAG-lite) cached by note ID
   const documentChunks: DocumentChunk[] = useMemo(() => {
     if (!focusedNote || !focusedNote.extractedText) return [];
     return chunkDocument(focusedNote.extractedText, focusedNote.id, {
@@ -115,12 +123,14 @@ export default function MainChatWorkspace({
 
         // Welcome Greeting localized
         let welcomeText = t.welcomeHeadline;
-        if (focusedNote && suitability) {
+        if (chatMode === "study" && focusedNote && suitability) {
           if (!suitability.isValid) {
-            welcomeText = `I processed "${focusedNote.title}", but couldn't find enough readable study content. The file might be blank or too low-resolution for text extraction.`;
+            welcomeText = `I processed "${focusedNote.title}", but couldn't find enough readable content.`;
           } else {
-            welcomeText = `I've analyzed and indexed "${focusedNote.title}" (~${documentChunks.length} sections). Ask me any specific topic, chapter, or question about this material!`;
+            welcomeText = `I've analyzed and indexed "${focusedNote.title}" (~${documentChunks.length} sections). Ask me any specific topic, question, or analysis on this document!`;
           }
+        } else if (chatMode === "simple") {
+          welcomeText = "Hello! I am Manthan360. Ask me any general question, math formula, code problem, or concept, and I'll explain it instantly.";
         }
 
         const welcomeMsg: ChatMessage = {
@@ -136,7 +146,7 @@ export default function MainChatWorkspace({
     };
 
     loadSession();
-  }, [activeSessionKey, focusedNote?.id, user?.uid, selectedLanguage]);
+  }, [activeSessionKey, focusedNote?.id, user?.uid, selectedLanguage, chatMode]);
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -160,8 +170,8 @@ export default function MainChatWorkspace({
       let contextPayload = "";
       let retrievedCitations: string[] = [];
 
-      // 2. Intelligent Relevant Chunk Retrieval
-      if (focusedNote && suitability?.isValid && documentChunks.length > 0) {
+      // 2. ONLY in Study Mode: Intelligent Relevant Chunk Retrieval
+      if (chatMode === "study" && focusedNote && suitability?.isValid && documentChunks.length > 0) {
         const retrieval = retrieveRelevantChunks(documentChunks, userQueryText, 4);
         retrievedCitations = retrieval.sources;
 
@@ -176,12 +186,12 @@ export default function MainChatWorkspace({
 
       setLastCitations(retrievedCitations);
 
-      // 3. Call AI endpoint with ONLY relevant context
+      // 3. Call AI endpoint with ONLY relevant context (or blank context for fast simple chat)
       const aiResponseText = await getTutorCorrection(newHistory, contextPayload);
 
       // Append Citation Tags if response was grounded from specific pages
       let finalAiResponse = aiResponseText;
-      if (retrievedCitations.length > 0 && !finalAiResponse.includes("Source:")) {
+      if (chatMode === "study" && retrievedCitations.length > 0 && !finalAiResponse.includes("Source:")) {
         finalAiResponse += `\n\n📌 *Referenced from:* ${retrievedCitations.join(", ")}`;
       }
 
@@ -199,7 +209,7 @@ export default function MainChatWorkspace({
         await setDoc(doc(db, "chatSessions", activeSessionKey), {
           id: activeSessionKey,
           userId: user.uid,
-          noteId: focusedNote ? focusedNote.id : "general",
+          noteId: (chatMode === "study" && focusedNote) ? focusedNote.id : "general",
           title: userQueryText.slice(0, 36),
           messages: finalHistory,
           updatedAt: new Date().toISOString(),
@@ -229,7 +239,7 @@ export default function MainChatWorkspace({
     } else if (actionType === "give_example") {
       handleSendMessage("Give me a practical real-world example of this concept.");
     } else if (actionType === "test_me") {
-      if (focusedNote && suitability?.isValid) {
+      if (chatMode === "study" && focusedNote && suitability?.isValid) {
         setActiveTab("quiz");
       } else {
         handleSendMessage("Test me with 3 practice exam questions on this topic.");
@@ -245,9 +255,62 @@ export default function MainChatWorkspace({
 
   return (
     <div className="flex-1 flex flex-col h-full relative" id="main-chat-workspace">
-      {/* Top Document Context Bar if note is focused */}
-      {focusedNote && (
-        <div className="sticky top-0 z-20 px-4 pt-2">
+      {/* Top Mode Switcher Bar */}
+      <div
+        id="chat-mode-switcher-bar"
+        className="sticky top-0 z-30 px-3 sm:px-6 py-2 bg-slate-950/90 backdrop-blur-md border-b border-white/10 flex items-center justify-between gap-2"
+      >
+        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 shadow-inner">
+          <button
+            type="button"
+            id="mode-switch-simple-btn"
+            onClick={() => setChatMode("simple")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              chatMode === "simple"
+                ? "bg-violet-600 text-white font-semibold shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>{t.simpleChat}</span>
+            {chatMode === "simple" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />}
+          </button>
+
+          <button
+            type="button"
+            id="mode-switch-study-btn"
+            onClick={() => setChatMode("study")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              chatMode === "study"
+                ? "bg-violet-600 text-white font-semibold shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>{t.studyMode}</span>
+            {chatMode === "study" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />}
+          </button>
+        </div>
+
+        {chatMode === "study" && focusedNote && suitability?.isValid ? (
+          <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
+            <span className="px-2 py-0.5 rounded-md bg-violet-950/80 text-violet-300 border border-violet-800/40 text-[10px] font-semibold">
+              {suitability.categoryLabel}
+            </span>
+            <span className="truncate max-w-[140px] sm:max-w-[220px] text-slate-300 font-medium hidden xs:inline">
+              {focusedNote.title}
+            </span>
+          </div>
+        ) : (
+          <span className="text-[11px] text-slate-400 hidden sm:inline font-mono">
+            {chatMode === "simple" ? "⚡ Fast AI Mode" : "📚 Document Mode"}
+          </span>
+        )}
+      </div>
+
+      {/* Top Document Context Bar if in study mode with focused note */}
+      {chatMode === "study" && focusedNote && (
+        <div className="px-4 pt-2">
           <DocumentContextBar
             note={focusedNote}
             onClearContext={() => {
@@ -381,29 +444,45 @@ export default function MainChatWorkspace({
                 {/* Follow-up & Dynamic Learning Action Buttons */}
                 {!isUser && (
                   <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-1.5 sm:gap-2">
-                    {focusedNote && suitability?.isValid ? (
+                    {chatMode === "study" && focusedNote && suitability?.isValid ? (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleActionClick("explain_simply")}
-                          disabled={!!actionInProgress}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                        >
-                          <QuestionIcon className="w-3 h-3" /> {t.explainSimpler}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleActionClick("give_example")}
-                          disabled={!!actionInProgress}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                        >
-                          <Sparkles className="w-3 h-3" /> {t.giveExample}
-                        </button>
+                        {suitability.customActionPills && suitability.customActionPills.length > 0 ? (
+                          suitability.customActionPills.map((pill) => (
+                            <button
+                              key={pill.id}
+                              type="button"
+                              onClick={() => handleSendMessage(pill.prompt)}
+                              disabled={!!actionInProgress || loading}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                            >
+                              <Sparkles className="w-3 h-3 text-violet-400" /> {pill.label}
+                            </button>
+                          ))
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleActionClick("explain_simply")}
+                              disabled={!!actionInProgress || loading}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <QuestionIcon className="w-3 h-3" /> {t.explainSimpler}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleActionClick("give_example")}
+                              disabled={!!actionInProgress || loading}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <Sparkles className="w-3 h-3" /> {t.giveExample}
+                            </button>
+                          </>
+                        )}
                         {suitability.recommendedFeatures.includes("flashcards") && (
                           <button
                             type="button"
                             onClick={() => handleActionClick("flashcards")}
-                            disabled={!!actionInProgress}
+                            disabled={!!actionInProgress || loading}
                             className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                           >
                             <Layers className="w-3 h-3" /> {t.makeFlashcards}
@@ -413,7 +492,7 @@ export default function MainChatWorkspace({
                           <button
                             type="button"
                             onClick={() => handleActionClick("quiz")}
-                            disabled={!!actionInProgress}
+                            disabled={!!actionInProgress || loading}
                             className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                           >
                             <Award className="w-3 h-3" /> {t.testMe}
@@ -423,7 +502,7 @@ export default function MainChatWorkspace({
                           <button
                             type="button"
                             onClick={() => handleActionClick("flowchart")}
-                            disabled={!!actionInProgress}
+                            disabled={!!actionInProgress || loading}
                             className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                           >
                             <Share2 className="w-3 h-3" /> {t.showFlowchart}
@@ -434,24 +513,24 @@ export default function MainChatWorkspace({
                       <>
                         <button
                           type="button"
-                          onClick={() => handleActionClick("give_example")}
-                          disabled={!!actionInProgress}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                        >
-                          <Sparkles className="w-3 h-3" /> {t.giveExample}
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => handleActionClick("explain_simply")}
-                          disabled={!!actionInProgress}
+                          disabled={!!actionInProgress || loading}
                           className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                         >
                           <QuestionIcon className="w-3 h-3" /> {t.explainSimpler}
                         </button>
                         <button
                           type="button"
+                          onClick={() => handleActionClick("give_example")}
+                          disabled={!!actionInProgress || loading}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Sparkles className="w-3 h-3" /> {t.giveExample}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleActionClick("test_me")}
-                          disabled={!!actionInProgress}
+                          disabled={!!actionInProgress || loading}
                           className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                         >
                           <Award className="w-3 h-3" /> {t.testMe}
@@ -480,11 +559,11 @@ export default function MainChatWorkspace({
             <div className="bg-slate-900/90 border border-white/10 rounded-2xl rounded-bl-sm p-4">
               <Loader
                 message={
-                  focusedNote && suitability?.isValid
+                  chatMode === "study" && focusedNote && suitability?.isValid
                     ? t.retrievingSectionsMessage
                     : t.thinkingMessage
                 }
-                step={focusedNote ? 2 : 1}
+                step={chatMode === "study" && focusedNote ? 2 : 1}
               />
             </div>
           </div>
@@ -520,11 +599,13 @@ export default function MainChatWorkspace({
         onAttachClick={() => setActiveTab("upload")}
         onSuggestionClick={handleActionClick}
         isLoading={loading}
-        hasDocument={!!focusedNote && (suitability?.isValid ?? false)}
+        hasDocument={chatMode === "study" && !!focusedNote && (suitability?.isValid ?? false)}
         placeholder={
-          focusedNote && suitability?.isValid
+          chatMode === "simple"
+            ? t.askAnythingSimplePlaceholder
+            : focusedNote && suitability?.isValid
             ? `Ask anything about "${focusedNote.title}"...`
-            : t.askAnythingPlaceholder
+            : t.studyModePlaceholder
         }
       />
     </div>

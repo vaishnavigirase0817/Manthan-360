@@ -53,6 +53,10 @@ export interface UIContent {
   activeContextLabel: string;
   suggestedActionsLabel: string;
   returnToChat: string;
+  simpleChat: string;
+  studyMode: string;
+  askAnythingSimplePlaceholder: string;
+  studyModePlaceholder: string;
 }
 
 export const TRANSLATIONS: Record<string, Partial<UIContent>> & { English: UIContent } = {
@@ -110,7 +114,11 @@ export const TRANSLATIONS: Record<string, Partial<UIContent>> & { English: UICon
     viewNotesBtn: "View Notes",
     activeContextLabel: "Active Context",
     suggestedActionsLabel: "Suggested Actions",
-    returnToChat: "Return to Study Chatbot"
+    returnToChat: "Return to Study Chatbot",
+    simpleChat: "Simple Chat",
+    studyMode: "Study Mode",
+    askAnythingSimplePlaceholder: "Ask Manthan360 anything...",
+    studyModePlaceholder: "Upload notes or ask a study question...",
   },
   Hindi: {
     dashboard: "डैशबोर्ड",
@@ -166,7 +174,11 @@ export const TRANSLATIONS: Record<string, Partial<UIContent>> & { English: UICon
     viewNotesBtn: "नोट्स देखें",
     activeContextLabel: "सक्रिय संदर्भ",
     suggestedActionsLabel: "सुझाए गए विषय",
-    returnToChat: "अध्ययन चैटबॉट पर वापस जाएं"
+    returnToChat: "अध्ययन चैटबॉट पर वापस जाएं",
+    simpleChat: "सरल चैट",
+    studyMode: "अध्ययन मोड",
+    askAnythingSimplePlaceholder: "मंथन360 से कुछ भी पूछें...",
+    studyModePlaceholder: "नोट्स अपलोड करें या अध्ययन प्रश्न पूछें...",
   },
   Marathi: {
     dashboard: "डॅशबोर्ड",
@@ -222,7 +234,11 @@ export const TRANSLATIONS: Record<string, Partial<UIContent>> & { English: UICon
     viewNotesBtn: "नोट्स पहा",
     activeContextLabel: "सक्रिय संदर्भ",
     suggestedActionsLabel: "सुचवलेल्या क्रिया",
-    returnToChat: "अभ्यास चॅटबॉटवर परत जा"
+    returnToChat: "अभ्यास चॅटबॉटवर परत जा",
+    simpleChat: "साधी चॅट",
+    studyMode: "अभ्यास मोड",
+    askAnythingSimplePlaceholder: "मंथन360 ला काहीही विचारा...",
+    studyModePlaceholder: "नोट्स अपलोड करा किंवा अभ्यासाचा प्रश्न विचारा...",
   },
   Gujarati: {
     dashboard: "ડેશબોર્ડ",

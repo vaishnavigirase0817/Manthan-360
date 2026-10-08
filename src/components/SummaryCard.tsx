@@ -265,21 +265,23 @@ export default function SummaryCard({ summary, noteTitle }: SummaryCardProps) {
           )}
 
           {/* Speed picker container */}
-          <div className="flex items-center gap-1.5 bg-white/5 border border-white/5 rounded-xl px-2.5 py-1.5">
-            <span className="text-[10px] font-mono font-bold text-slate-400">SPEED:</span>
-            <select
-              value={playbackSpeed}
-              onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-              id="summary-tts-speed-select"
-              className="bg-transparent border-none text-[11px] font-mono font-bold text-violet-300 focus:outline-none cursor-pointer"
-            >
-              <option value="0.5" className="bg-slate-900 text-white">0.5x (Slow)</option>
-              <option value="0.75" className="bg-slate-900 text-white">0.75x</option>
-              <option value="1.0" className="bg-slate-900 text-white">1.0x (Normal)</option>
-              <option value="1.25" className="bg-slate-900 text-white">1.25x</option>
-              <option value="1.5" className="bg-slate-900 text-white">1.5x (Fast)</option>
-              <option value="2.0" className="bg-slate-900 text-white">2.0x</option>
-            </select>
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+            <span className="text-[10px] font-mono font-bold text-slate-400 px-1.5 hidden sm:inline">SPEED:</span>
+            {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                id={`tts-speed-btn-${rate}`}
+                onClick={() => handleSpeedChange(rate)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                  playbackSpeed === rate
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                }`}
+              >
+                {rate}×
+              </button>
+            ))}
           </div>
         </div>
       </div>

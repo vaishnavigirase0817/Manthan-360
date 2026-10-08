@@ -18,12 +18,17 @@ import {
 import { useLanguage } from "../context/LanguageContext";
 import { getTranslation } from "../translations";
 
+import { ContentSuitability } from "../services/contentAnalyzer";
+import { Note } from "../types";
+
 interface MobileLearningMenuProps {
   isOpen: boolean;
   onClose: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   noteSelected: boolean;
+  focusedNote?: Note | null;
+  suitability?: ContentSuitability | null;
 }
 
 export default function MobileLearningMenu({
@@ -32,25 +37,35 @@ export default function MobileLearningMenu({
   activeTab,
   setActiveTab,
   noteSelected,
+  focusedNote,
+  suitability,
 }: MobileLearningMenuProps) {
   const { selectedLanguage } = useLanguage();
   const t = getTranslation(selectedLanguage);
 
   if (!isOpen) return null;
 
-  const tools = [
-    { id: "summary", label: "AI Summary", desc: "Key points & detailed breakdown", icon: FileText, requiresNote: true },
-    { id: "tutor", label: "Study Buddy", desc: "Interactive conversational AI tutor", icon: MessageSquare, requiresNote: true },
-    { id: "planner", label: "Study Roadmap", desc: "Curated learning journey & timeline", icon: CalendarRange, requiresNote: true },
-    { id: "flashcards", label: "Flashcards", desc: "Spaced repetition active practice", icon: Layers, requiresNote: true },
-    { id: "quiz", label: "Active Recall Quiz", desc: "Self-assessment & score tracking", icon: Award, requiresNote: true },
-    { id: "mindmap", label: "Brainstorm Mind Map", desc: "Visual concept node graph", icon: GitGraph, requiresNote: true },
-    { id: "flowchart", label: "Interactive Concept Flow", desc: "Step-by-step logic flowchart", icon: Share2, requiresNote: true },
-    { id: "export", label: "AI Presentation", desc: "Slide decks & study exports", icon: DownloadCloud, requiresNote: true },
+  const allTools = [
+    { id: "summary", label: t.summary, desc: "Key points & detailed breakdown", icon: FileText, requiresNote: true },
+    { id: "tutor", label: t.aiTutor, desc: "Interactive conversational AI tutor", icon: MessageSquare, requiresNote: true },
+    { id: "planner", label: t.roadmap, desc: "Curated learning journey & timeline", icon: CalendarRange, requiresNote: true },
+    { id: "flashcards", label: t.flashcards, desc: "Spaced repetition active practice", icon: Layers, requiresNote: true },
+    { id: "quiz", label: t.quiz, desc: "Self-assessment & score tracking", icon: Award, requiresNote: true },
+    { id: "mindmap", label: t.mindMap, desc: "Visual concept node graph", icon: GitGraph, requiresNote: true },
+    { id: "flowchart", label: t.flowchart, desc: "Step-by-step logic flowchart", icon: Share2, requiresNote: true },
+    { id: "export", label: t.presentation, desc: "Slide decks & study exports", icon: DownloadCloud, requiresNote: true },
     { id: "videos", label: "AI Animated Teacher", desc: "Multi-slide structured lectures", icon: Video, requiresNote: true },
-    { id: "upload", label: "Upload Notes", desc: "Add PDF, docs, or text notes", icon: UploadCloud, requiresNote: false },
-    { id: "analytics", label: "Settings & Analytics", desc: "Streak, goals & preferences", icon: Settings, requiresNote: false },
+    { id: "upload", label: t.uploadButton, desc: "Add PDF, docs, or text notes", icon: UploadCloud, requiresNote: false },
+    { id: "analytics", label: t.settings, desc: "Streak, goals & preferences", icon: Settings, requiresNote: false },
   ];
+
+  // Filter tools: hide unsuitable features for non-educational documents
+  const tools = allTools.filter((tool) => {
+    if (!tool.requiresNote) return true;
+    if (!focusedNote || !suitability) return true;
+    if (suitability.unsuitableFeatures.includes(tool.id)) return false;
+    return true;
+  });
 
   const handleSelect = (toolId: string, locked: boolean) => {
     if (locked) return;

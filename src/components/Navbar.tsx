@@ -28,14 +28,14 @@ export default function Navbar({ user, onOpenLearningTools, onOpenRecentChats }:
       className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/90 backdrop-blur-xl px-3 sm:px-6 py-2.5 flex items-center justify-between transition-all"
     >
       <div id="navbar-brand-section" className="flex items-center gap-2 sm:gap-3 min-w-0">
-        {/* Mobile Left Menu: Learning Tools Trigger [ ☰ ] */}
-        {onOpenLearningTools && (
+        {/* Mobile Left Menu: Recent Chats Trigger [ ☰ ] */}
+        {onOpenRecentChats && (
           <button
             type="button"
-            id="navbar-mobile-learning-tools-btn"
-            onClick={onOpenLearningTools}
+            id="navbar-mobile-recent-chats-btn"
+            onClick={onOpenRecentChats}
             className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-            title="Learning Tools"
+            title="Recent Chats & History"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -67,14 +67,14 @@ export default function Navbar({ user, onOpenLearningTools, onOpenRecentChats }:
           </select>
         </div>
 
-        {/* Mobile Right Menu: Recent Chats Trigger [ ⋮ ] */}
-        {onOpenRecentChats && (
+        {/* Mobile Right Menu: Learning Tools Trigger [ ⋮ ] */}
+        {onOpenLearningTools && (
           <button
             type="button"
-            id="navbar-mobile-recent-chats-btn"
-            onClick={onOpenRecentChats}
+            id="navbar-mobile-learning-tools-btn"
+            onClick={onOpenLearningTools}
             className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900/90 border border-white/10 hover:bg-slate-800 transition-colors shrink-0"
-            title="Recent Chats & Settings"
+            title="Learning Tools & Features"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
