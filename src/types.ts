@@ -111,9 +111,10 @@ export interface ChatMessage {
 
 export interface ChatSession {
   id: string;
-  userId: string;
+  userId?: string;
   noteId: string;
+  title?: string;
   messages: ChatMessage[];
-  createdAt: any;
-  updatedAt: any;
+  createdAt?: any;
+  updatedAt?: any;
 }

@@ -6,6 +6,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { FirebaseUser, Note } from "../types";
 import { extractTextFromPdf, ExtractionProgress } from "../services/pdfExtractor";
+import { extractTextFromPptx } from "../services/pptxExtractor";
 import { analyzeContentSuitability } from "../services/contentAnalyzer";
 
 interface NoteUploaderProps {
@@ -56,12 +57,14 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
     setError("");
     setExtractedText("");
     setPageCount(null);
+    const fileName = selectedFile.name.toLowerCase();
     const fileType = selectedFile.type;
     const isImage = fileType.startsWith("image/");
-    const isPdf = fileType === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
+    const isPdf = fileType === "application/pdf" || fileName.endsWith(".pdf");
+    const isPpt = fileName.endsWith(".pptx") || fileName.endsWith(".ppt");
 
-    if (!isImage && !isPdf) {
-      setError("Please upload an image (PNG, JPG) or a PDF study document.");
+    if (!isImage && !isPdf && !isPpt) {
+      setError("Please upload an image (PNG, JPG), PDF document, or PPTX presentation.");
       return;
     }
 
@@ -70,10 +73,31 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
     const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
     setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
 
-    if (isPdf) {
+    if (isPpt) {
+      triggerPptExtraction(selectedFile);
+    } else if (isPdf) {
       triggerPdfExtraction(selectedFile);
     } else {
       triggerImageOCR(selectedFile);
+    }
+  };
+
+  const triggerPptExtraction = async (pptFile: File) => {
+    setIsProcessing(true);
+    setProgressPercent(20);
+    setProgressMessage(`Parsing PowerPoint slides from ${pptFile.name}...`);
+    setError("");
+
+    try {
+      const result = await extractTextFromPptx(pptFile);
+      setPageCount(result.slideCount);
+      setExtractedText(result.text);
+      setProgressPercent(100);
+      setIsProcessing(false);
+    } catch (err: any) {
+      console.error("PPT Extraction error:", err);
+      setIsProcessing(false);
+      setError(err.message || "Failed to extract text from PowerPoint presentation.");
     }
   };
 
@@ -247,16 +271,16 @@ export default function NoteUploader({ user, onUploaded }: NoteUploaderProps) {
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept="application/pdf,image/*,.pdf"
+              accept="application/pdf,image/*,.pdf,.pptx,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation"
               className="hidden"
               id="uploader-file-input"
             />
             <div className="w-16 h-16 rounded-2xl bg-cyan-950/50 border border-cyan-800/60 flex items-center justify-center mb-6 text-cyan-400">
               <Upload className="w-8 h-8" />
             </div>
-            <h3 className="font-sans font-semibold text-lg text-slate-100">Upload PDF or Handwritten Notes</h3>
+            <h3 className="font-sans font-semibold text-lg text-slate-100">Upload PDF, PPTX or Handwritten Notes</h3>
             <p className="text-sm text-slate-400 mt-2 max-w-sm">
-              Upload textbook PDFs, syllabus slides, lecture handouts, or note photos (PDF, PNG, JPG) to extract full multi-page document text.
+              Upload textbook PDFs, syllabus PPTX slides, lecture handouts, or note photos (PDF, PPTX, PNG, JPG) to extract full multi-page document text.
             </p>
             <span className="text-xs font-mono text-cyan-500 bg-cyan-950/30 border border-cyan-900/40 px-3 py-1.5 rounded-full mt-6 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5" /> Full Multi-Page Document Parser Active

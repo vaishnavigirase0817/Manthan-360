@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { FirebaseUser, Note, ChatMessage } from "../types";
+import { FirebaseUser, Note, ChatMessage, ChatSession } from "../types";
 import { getTutorCorrection } from "../services/api";
 import { db } from "../services/firebase";
 import { doc, getDocs, setDoc, query, collection, where } from "firebase/firestore";
@@ -8,6 +8,7 @@ import ChatComposer from "./ChatComposer";
 import Loader from "./Loader";
 import ManthanLogo from "./ManthanLogo";
 import { analyzeContentSuitability, ContentSuitability } from "../services/contentAnalyzer";
+import { chunkDocument, retrieveRelevantChunks, DocumentChunk } from "../services/documentChunker";
 import {
   Sparkles,
   User,
@@ -18,7 +19,6 @@ import {
   GitGraph,
   Share2,
   CalendarRange,
-  Video,
   DownloadCloud,
   UploadCloud,
   ArrowRight,
@@ -30,6 +30,8 @@ import {
   RefreshCw,
   HelpCircle as QuestionIcon,
   Zap,
+  Bookmark,
+  Search,
 } from "lucide-react";
 
 interface MainChatWorkspaceProps {
@@ -40,6 +42,8 @@ interface MainChatWorkspaceProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onNewSession?: () => void;
+  currentSessionId?: string;
+  onSessionUpdated?: () => void;
 }
 
 export default function MainChatWorkspace({
@@ -50,30 +54,41 @@ export default function MainChatWorkspace({
   activeTab,
   setActiveTab,
   onNewSession,
+  currentSessionId,
+  onSessionUpdated,
 }: MainChatWorkspaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastQuery, setLastQuery] = useState("");
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [lastCitations, setLastCitations] = useState<string[]>([]);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  // Content suitability intelligence
+  // Document suitability intelligence
   const suitability: ContentSuitability | null = useMemo(() => {
     if (!focusedNote) return null;
     return analyzeContentSuitability(focusedNote.extractedText);
   }, [focusedNote?.id, focusedNote?.extractedText]);
 
-  const sessionId = focusedNote && user ? `chat_${focusedNote.id}_${user.uid}` : "";
+  // Scalable Document Chunks (RAG-lite)
+  const documentChunks: DocumentChunk[] = useMemo(() => {
+    if (!focusedNote || !focusedNote.extractedText) return [];
+    return chunkDocument(focusedNote.extractedText, focusedNote.id, {
+      fileName: focusedNote.fileName,
+    });
+  }, [focusedNote?.id, focusedNote?.extractedText]);
+
+  const activeSessionKey = currentSessionId || (focusedNote && user ? `chat_${focusedNote.id}_${user.uid}` : (user ? `chat_general_${user.uid}` : "guest_session"));
 
   // Auto scroll to bottom of chat
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Load chat session if note is selected
+  // Load chat session from Firestore
   useEffect(() => {
-    if (!focusedNote || !user) {
+    if (!user) {
       setMessages([]);
       return;
     }
@@ -82,7 +97,7 @@ export default function MainChatWorkspace({
       try {
         const q = query(
           collection(db, "chatSessions"),
-          where("id", "==", sessionId)
+          where("id", "==", activeSessionKey)
         );
         const snap = await getDocs(q);
 
@@ -94,14 +109,14 @@ export default function MainChatWorkspace({
           }
         }
 
-        // Default initial greeting customized by content intelligence
-        let welcomeText = `I've analyzed your study material "${focusedNote.title}".`;
-        if (suitability && !suitability.isValid) {
-          welcomeText = `I processed "${focusedNote.title}", but couldn't find enough readable study content. The file might be blank or too low-resolution for text extraction.`;
-        } else if (suitability && suitability.isShort) {
-          welcomeText = `I've analyzed your concise notes on "${focusedNote.title}". What would you like to review?`;
-        } else {
-          welcomeText = `I've processed your study material "${focusedNote.title}". What would you like to do with it?`;
+        // Welcome Greeting
+        let welcomeText = "Hi! Upload your study notes, PDF, PPT or ask me anything you want to learn.";
+        if (focusedNote && suitability) {
+          if (!suitability.isValid) {
+            welcomeText = `I processed "${focusedNote.title}", but couldn't find enough readable study content. The file might be blank or too low-resolution for text extraction.`;
+          } else {
+            welcomeText = `I've analyzed and indexed "${focusedNote.title}" (~${documentChunks.length} sections). Ask me any specific topic, chapter, or question about this material!`;
+          }
         }
 
         const welcomeMsg: ChatMessage = {
@@ -117,18 +132,19 @@ export default function MainChatWorkspace({
     };
 
     loadSession();
-  }, [focusedNote?.id, user?.uid, sessionId, suitability?.isValid]);
+  }, [activeSessionKey, focusedNote?.id, user?.uid]);
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
 
     setError("");
-    setLastQuery(text.trim());
+    const userQueryText = text.trim();
+    setLastQuery(userQueryText);
 
-    // 1. PATH A / B: Immediately render user's message optimistically
+    // 1. Immediately render user's message optimistically
     const userMsg: ChatMessage = {
       role: "user",
-      content: text.trim(),
+      content: userQueryText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
@@ -137,32 +153,58 @@ export default function MainChatWorkspace({
     setLoading(true);
 
     try {
-      // Document context is only passed if a valid note exists
-      const extractedContent = (suitability?.isValid && focusedNote?.extractedText) ? focusedNote.extractedText : "";
-      const aiResponseText = await getTutorCorrection(newHistory, extractedContent);
+      let contextPayload = "";
+      let retrievedCitations: string[] = [];
+
+      // 2. Intelligent Relevant Chunk Retrieval
+      if (focusedNote && suitability?.isValid && documentChunks.length > 0) {
+        const retrieval = retrieveRelevantChunks(documentChunks, userQueryText, 4);
+        retrievedCitations = retrieval.sources;
+
+        if (retrieval.relevantChunks.length > 0) {
+          contextPayload = retrieval.relevantChunks
+            .map((c) => `[Source: Page ${c.pageNumber || 1}]\n${c.text}`)
+            .join("\n\n---\n\n");
+        } else {
+          contextPayload = focusedNote.extractedText.slice(0, 4000);
+        }
+      }
+
+      setLastCitations(retrievedCitations);
+
+      // 3. Call AI endpoint with ONLY relevant context
+      const aiResponseText = await getTutorCorrection(newHistory, contextPayload);
+
+      // Append Citation Tags if response was grounded from specific pages
+      let finalAiResponse = aiResponseText;
+      if (retrievedCitations.length > 0 && !finalAiResponse.includes("Source:")) {
+        finalAiResponse += `\n\n📌 *Referenced from:* ${retrievedCitations.join(", ")}`;
+      }
 
       const aiMsg: ChatMessage = {
         role: "assistant",
-        content: aiResponseText,
+        content: finalAiResponse,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
       const finalHistory = [...newHistory, aiMsg];
       setMessages(finalHistory);
 
-      // Save to Firestore if user and note are active
-      if (user && focusedNote) {
-        await setDoc(doc(db, "chatSessions", sessionId), {
-          id: sessionId,
+      // 4. Save to Firestore
+      if (user) {
+        await setDoc(doc(db, "chatSessions", activeSessionKey), {
+          id: activeSessionKey,
           userId: user.uid,
-          noteId: focusedNote.id,
+          noteId: focusedNote ? focusedNote.id : "general",
+          title: userQueryText.slice(0, 36),
           messages: finalHistory,
           updatedAt: new Date().toISOString(),
         });
+        if (onSessionUpdated) onSessionUpdated();
       }
     } catch (err: any) {
       console.error("Manthan360 Chat Error:", err);
-      setError("Manthan360 couldn't complete that request. Please try again.");
+      setError("Manthan360 couldn't complete that response. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -179,14 +221,14 @@ export default function MainChatWorkspace({
     setActionInProgress(actionType);
 
     if (actionType === "explain_simply") {
-      handleSendMessage("Explain this simply with intuitive examples.");
+      handleSendMessage("Explain this topic simply with intuitive beginner examples.");
     } else if (actionType === "give_example") {
       handleSendMessage("Give me a practical real-world example of this concept.");
     } else if (actionType === "test_me") {
       if (focusedNote && suitability?.isValid) {
         setActiveTab("quiz");
       } else {
-        handleSendMessage("Test me with 3 practice questions on this topic.");
+        handleSendMessage("Test me with 3 practice exam questions on this topic.");
       }
     } else {
       setActiveTab(actionType);
@@ -204,7 +246,9 @@ export default function MainChatWorkspace({
         <div className="sticky top-0 z-20 px-4 pt-2">
           <DocumentContextBar
             note={focusedNote}
-            onClearContext={() => setActiveTab("dashboard")}
+            onClearContext={() => {
+              if (onNewSession) onNewSession();
+            }}
             onOpenDocument={() => setActiveTab("summary")}
           />
         </div>
@@ -212,15 +256,15 @@ export default function MainChatWorkspace({
 
       {/* Main Conversation Flow Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 space-y-6 max-w-4xl mx-auto w-full no-scrollbar">
-        {/* Welcome State when no note is focused */}
-        {!focusedNote && (
+        {/* Welcome State when no messages or new session */}
+        {messages.length <= 1 && !focusedNote && (
           <div className="flex flex-col items-center justify-center py-10 text-center animate-fade-in" id="workspace-welcome-state">
             <div className="mb-4">
               <ManthanLogo size="lg" />
             </div>
 
             <p className="text-sm sm:text-base text-slate-300 light:text-rose-900 mt-2 max-w-md font-sans">
-              Your AI-powered study companion. Upload your study material or ask me what you want to learn.
+              Your AI-powered study companion. Upload 10–300+ page notes, PPTs, or ask anything you want to learn.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
@@ -231,7 +275,7 @@ export default function MainChatWorkspace({
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 light:from-rose-800 light:to-rose-950 hover:from-violet-500 hover:to-indigo-500 light:hover:from-rose-700 text-white font-medium text-sm shadow-lg shadow-violet-500/20 light:shadow-rose-900/20 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <UploadCloud className="w-4 h-4" />
-                Upload Notes
+                Upload Notes / Book PDF
               </button>
 
               <button
@@ -272,7 +316,7 @@ export default function MainChatWorkspace({
           </div>
         )}
 
-        {/* Blank / Invalid Document Warning Banner if content is unusable */}
+        {/* Blank / Invalid Document Warning Banner */}
         {focusedNote && suitability && !suitability.isValid && (
           <div className="p-4 rounded-2xl bg-amber-950/30 light:bg-amber-50 border border-amber-500/30 light:border-amber-300 text-amber-200 light:text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in" id="invalid-doc-banner">
             <div className="flex items-center gap-3">
@@ -333,19 +377,24 @@ export default function MainChatWorkspace({
                 {/* Follow-up & Dynamic Learning Action Buttons */}
                 {!isUser && (
                   <div className="mt-3 pt-3 border-t border-white/10 light:border-rose-900/10 flex flex-wrap gap-2">
-                    {/* If valid document is attached, show its tailored features */}
                     {focusedNote && suitability?.isValid ? (
                       <>
-                        {suitability.recommendedFeatures.includes("summary") && (
-                          <button
-                            type="button"
-                            onClick={() => handleActionClick("summary")}
-                            disabled={!!actionInProgress}
-                            className="px-2.5 py-1 rounded-lg bg-violet-950/60 light:bg-rose-100 hover:bg-violet-900/80 light:hover:bg-rose-200 text-violet-200 light:text-rose-950 border border-violet-500/30 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                          >
-                            <FileText className="w-3 h-3" /> Summary
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick("explain_simply")}
+                          disabled={!!actionInProgress}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <QuestionIcon className="w-3 h-3" /> Explain Simpler
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick("give_example")}
+                          disabled={!!actionInProgress}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Sparkles className="w-3 h-3" /> Give Example
+                        </button>
                         {suitability.recommendedFeatures.includes("flashcards") && (
                           <button
                             type="button"
@@ -353,7 +402,7 @@ export default function MainChatWorkspace({
                             disabled={!!actionInProgress}
                             className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                           >
-                            <Layers className="w-3 h-3" /> Flashcards
+                            <Layers className="w-3 h-3" /> Make Flashcards
                           </button>
                         )}
                         {suitability.recommendedFeatures.includes("quiz") && (
@@ -363,17 +412,7 @@ export default function MainChatWorkspace({
                             disabled={!!actionInProgress}
                             className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                           >
-                            <Award className="w-3 h-3" /> Quiz
-                          </button>
-                        )}
-                        {suitability.recommendedFeatures.includes("mindmap") && (
-                          <button
-                            type="button"
-                            onClick={() => handleActionClick("mindmap")}
-                            disabled={!!actionInProgress}
-                            className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                          >
-                            <GitGraph className="w-3 h-3" /> Mind Map
+                            <Award className="w-3 h-3" /> Test Me
                           </button>
                         )}
                         {suitability.recommendedFeatures.includes("flowchart") && (
@@ -383,12 +422,11 @@ export default function MainChatWorkspace({
                             disabled={!!actionInProgress}
                             className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                           >
-                            <Share2 className="w-3 h-3" /> Flowchart
+                            <Share2 className="w-3 h-3" /> Show Flowchart
                           </button>
                         )}
                       </>
                     ) : (
-                      /* Free-form conversational follow-up suggestions */
                       <>
                         <button
                           type="button"
@@ -404,7 +442,7 @@ export default function MainChatWorkspace({
                           disabled={!!actionInProgress}
                           className="px-2.5 py-1 rounded-lg bg-slate-800 light:bg-rose-50 hover:bg-slate-700 light:hover:bg-rose-100 text-slate-200 light:text-rose-950 border border-white/10 light:border-rose-900/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                         >
-                          <QuestionIcon className="w-3 h-3" /> Explain Simply
+                          <QuestionIcon className="w-3 h-3" /> Explain Simpler
                         </button>
                         <button
                           type="button"
@@ -429,7 +467,7 @@ export default function MainChatWorkspace({
           );
         })}
 
-        {/* Lightweight Instant Thinking Bubble for Normal and Document Chat */}
+        {/* Lightweight Instant Thinking Indicator */}
         {loading && (
           <div className="flex gap-3 animate-fade-in" id="chat-thinking-indicator">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 light:from-rose-800 light:to-rose-950 flex items-center justify-center shadow-md shrink-0 mt-1">
@@ -439,8 +477,8 @@ export default function MainChatWorkspace({
               <Loader
                 message={
                   focusedNote && suitability?.isValid
-                    ? "Manthan360 is analyzing your study material context..."
-                    : "Thinking…"
+                    ? "Manthan360 is retrieving relevant sections from your notes..."
+                    : "Manthan360 is thinking…"
                 }
                 step={focusedNote ? 2 : 1}
               />
@@ -481,8 +519,8 @@ export default function MainChatWorkspace({
         hasDocument={!!focusedNote && (suitability?.isValid ?? false)}
         placeholder={
           focusedNote && suitability?.isValid
-            ? `Ask Manthan360 about "${focusedNote.title}"...`
-            : "Ask Manthan360 anything or upload notes..."
+            ? `Ask anything about "${focusedNote.title}" or type a topic...`
+            : "Ask anything about your notes or type a topic..."
         }
       />
     </div>

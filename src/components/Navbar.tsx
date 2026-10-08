@@ -7,13 +7,13 @@ import ManthanLogo from "./ManthanLogo";
 
 interface NavbarProps {
   user: FirebaseUser | null;
-  onToggleSidebar?: () => void;
-  onOpenMobileTools?: () => void;
+  onOpenLearningTools?: () => void;
+  onOpenRecentChats?: () => void;
 }
 
-export default function Navbar({ user, onToggleSidebar, onOpenMobileTools }: NavbarProps) {
+export default function Navbar({ user, onOpenLearningTools, onOpenRecentChats }: NavbarProps) {
   const { selectedLanguage, setLanguage } = useLanguage();
-  const { theme, setTheme, isDark } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     try {
@@ -36,17 +36,17 @@ export default function Navbar({ user, onToggleSidebar, onOpenMobileTools }: Nav
   return (
     <nav
       id="main-navbar"
-      className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-xl px-4 sm:px-6 py-2.5 flex items-center justify-between transition-all"
+      className="sticky top-0 z-40 w-full border-b border-white/10 light:border-rose-900/15 bg-slate-950/80 light:bg-[#fdf5f6]/90 backdrop-blur-xl px-4 sm:px-6 py-2.5 flex items-center justify-between transition-all"
     >
       <div id="navbar-brand-section" className="flex items-center gap-3">
-        {/* Mobile menu toggle */}
-        {onToggleSidebar && (
+        {/* Mobile Left Menu: Learning Tools Trigger [ ☰ ] */}
+        {onOpenLearningTools && (
           <button
             type="button"
-            id="navbar-mobile-drawer-toggle"
-            onClick={onToggleSidebar}
-            className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            title="Toggle Menu"
+            id="navbar-mobile-learning-tools-btn"
+            onClick={onOpenLearningTools}
+            className="md:hidden p-2 rounded-xl text-slate-300 light:text-rose-950 hover:text-white hover:bg-white/10 light:hover:bg-rose-100 transition-colors"
+            title="Learning Tools"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -91,14 +91,14 @@ export default function Navbar({ user, onToggleSidebar, onOpenMobileTools }: Nav
           </select>
         </div>
 
-        {/* Mobile 3-Dot Learning Tools Trigger */}
-        {onOpenMobileTools && (
+        {/* Mobile Right Menu: Recent Chats Trigger [ ⋮ ] */}
+        {onOpenRecentChats && (
           <button
             type="button"
-            id="navbar-mobile-tools-btn"
-            onClick={onOpenMobileTools}
+            id="navbar-mobile-recent-chats-btn"
+            onClick={onOpenRecentChats}
             className="md:hidden p-2 rounded-xl text-slate-300 light:text-rose-950 hover:text-white bg-slate-900/80 light:bg-white border border-white/10 light:border-rose-900/20 hover:bg-slate-800 transition-colors"
-            title="Open Learning Tools"
+            title="Recent Chats"
           >
             <MoreVertical className="w-4 h-4" />
           </button>

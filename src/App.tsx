@@ -1,26 +1,27 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./services/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { FirebaseUser, Note } from "./types";
+import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { FirebaseUser, Note, ChatSession } from "./types";
 import Navbar from "./components/Navbar";
-import Sidebar from "./components/Sidebar";
+import TopFeatureBar from "./components/TopFeatureBar";
+import RecentChatsSidebar from "./components/RecentChatsSidebar";
+import RecentChatsMobileDrawer from "./components/RecentChatsMobileDrawer";
 import MobileLearningMenu from "./components/MobileLearningMenu";
 import MainChatWorkspace from "./components/MainChatWorkspace";
 import Loader from "./components/Loader";
 import { checkAndTickStreak } from "./services/gamification";
 import { ThemeProvider } from "./context/ThemeContext";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { MessageSquare, X, Sparkles } from "lucide-react";
+import { MessageSquare, Sparkles } from "lucide-react";
+import { analyzeContentSuitability } from "./services/contentAnalyzer";
 
 // Code splitting / Route-based lazy loading for heavy workspace pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const UploadNotes = lazy(() => import("./pages/UploadNotes"));
 const Summary = lazy(() => import("./pages/Summary"));
 const Flashcards = lazy(() => import("./pages/Flashcards"));
 const QuizRoom = lazy(() => import("./pages/Quiz"));
-const Tutor = lazy(() => import("./pages/Tutor"));
 const MindMap = lazy(() => import("./pages/MindMap"));
 const Flowchart = lazy(() => import("./pages/Flowchart"));
 const StudyPlanner = lazy(() => import("./pages/StudyPlanner"));
@@ -31,40 +32,77 @@ const ExportHub = lazy(() => import("./pages/ExportHub"));
 function AppContent() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("chat");
   const [focusedNote, setFocusedNote] = useState<Note | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [mobileLearningOpen, setMobileLearningOpen] = useState(false);
+  const [mobileRecentChatsOpen, setMobileRecentChatsOpen] = useState(false);
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>("");
   
   const navigate = useNavigate();
 
+  // Content suitability for top feature bar status
+  const suitability = focusedNote ? analyzeContentSuitability(focusedNote.extractedText) : null;
+
+  // Load chat sessions from Firestore
+  const fetchChatSessions = async () => {
+    if (!user) {
+      setChatSessions([]);
+      return;
+    }
+    try {
+      const q = query(
+        collection(db, "chatSessions"),
+        where("userId", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      const loaded: ChatSession[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        loaded.push({
+          id: data.id || d.id,
+          noteId: data.noteId || "general",
+          title: data.title || "Study Conversation",
+          messages: data.messages || [],
+          updatedAt: data.updatedAt || new Date().toISOString(),
+        });
+      });
+      loaded.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+      setChatSessions(loaded);
+    } catch (e) {
+      console.error("Failed to load chat sessions:", e);
+    }
+  };
+
   // Load recent notes whenever user is active
-  useEffect(() => {
+  const fetchRecentNotes = async () => {
     if (!user) {
       setRecentNotes([]);
       return;
     }
+    try {
+      const q = query(
+        collection(db, "notes"),
+        where("userId", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      const loaded: Note[] = [];
+      snap.forEach((d) => loaded.push(d.data() as Note));
+      loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setRecentNotes(loaded);
+    } catch (e) {
+      console.error("Failed to load recent notes:", e);
+    }
+  };
 
-    const fetchRecentNotes = async () => {
-      try {
-        const q = query(
-          collection(db, "notes"),
-          where("userId", "==", user.uid)
-        );
-        const snap = await getDocs(q);
-        const loaded: Note[] = [];
-        snap.forEach((d) => loaded.push(d.data() as Note));
-        loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setRecentNotes(loaded);
-      } catch (e) {
-        console.error("Failed to load recent notes for sidebar:", e);
-      }
-    };
-
-    fetchRecentNotes();
-  }, [user, focusedNote]);
+  useEffect(() => {
+    if (user) {
+      fetchRecentNotes();
+      fetchChatSessions();
+    }
+  }, [user]);
 
   // Monitor Auth Session
   useEffect(() => {
@@ -101,7 +139,7 @@ function AppContent() {
         if (!localStorage.getItem("manthan360_demo_user")) {
           setUser(null);
           setFocusedNote(null);
-          setActiveTab("dashboard");
+          setActiveTab("chat");
           navigate("/", { replace: true });
         }
       }
@@ -113,12 +151,46 @@ function AppContent() {
 
   const handleSelectNote = (note: Note) => {
     setFocusedNote(note);
+    if (user) {
+      setCurrentSessionId(`chat_${note.id}_${user.uid}`);
+    }
     setActiveTab("chat");
   };
 
   const handleStartNewSession = () => {
     setFocusedNote(null);
+    if (user) {
+      setCurrentSessionId(`chat_session_${Date.now()}_${user.uid}`);
+    } else {
+      setCurrentSessionId(`guest_${Date.now()}`);
+    }
     setActiveTab("chat");
+  };
+
+  const handleSelectSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    const session = chatSessions.find((s) => s.id === sessionId);
+    if (session && session.noteId && session.noteId !== "general") {
+      const matchedNote = recentNotes.find((n) => n.id === session.noteId);
+      if (matchedNote) {
+        setFocusedNote(matchedNote);
+      }
+    } else {
+      setFocusedNote(null);
+    }
+    setActiveTab("chat");
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await deleteDoc(doc(db, "chatSessions", sessionId));
+      setChatSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (currentSessionId === sessionId) {
+        handleStartNewSession();
+      }
+    } catch (e) {
+      console.error("Failed to delete chat session:", e);
+    }
   };
 
   const handleLoginSuccess = (u: any) => {
@@ -135,20 +207,20 @@ function AppContent() {
 
   if (authChecking) {
     return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center relative overflow-hidden" id="auth-loading-gate">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/10 rounded-full blur-[100px]" />
-        <Loader message="Verifying secure student authorization session..." step={1} />
+      <div className="min-h-screen bg-[#020617] light:bg-[#fdf5f6] flex items-center justify-center relative overflow-hidden" id="auth-loading-gate">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 light:bg-rose-900/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/10 light:bg-rose-800/10 rounded-full blur-[100px]" />
+        <Loader message="Verifying secure Manthan360 session..." step={1} />
       </div>
     );
   }
 
-  const isConversationalView = activeTab === "chat" || activeTab === "tutor";
+  const isConversationalView = activeTab === "chat";
 
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="min-h-screen bg-[#020617] light:bg-[#fdf5f6] flex items-center justify-center">
           <Loader message="Loading Manthan360 Workspace..." step={2} />
         </div>
       }
@@ -166,118 +238,93 @@ function AppContent() {
           } 
         />
 
-        {/* Protected Dashboard Route */}
+        {/* Protected Dashboard / AI Workspace Route */}
         <Route 
           path="/dashboard" 
           element={
             !user ? (
               <Navigate to="/" replace />
             ) : (
-              <div className="min-h-screen bg-[#020617] flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200 relative text-slate-100 overflow-x-hidden" id="manthan-360-app">
-                {/* Background Decorative Elements */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/20 rounded-full blur-[120px] pointer-events-none z-0" />
-                <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none z-0" />
+              <div className="min-h-screen bg-[#020617] light:bg-[#fdf5f6] flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200 relative text-slate-100 light:text-slate-900 overflow-x-hidden" id="manthan-360-app">
+                {/* Background Decorative Glows */}
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/20 light:bg-rose-900/10 rounded-full blur-[120px] pointer-events-none z-0" />
+                <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/20 light:bg-rose-800/10 rounded-full blur-[100px] pointer-events-none z-0" />
 
-                {/* Modern Fixed Navbar */}
+                {/* Modern Fixed Top Navbar */}
                 <Navbar
                   user={user}
-                  onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-                  onOpenMobileTools={() => setMobileToolsOpen(true)}
+                  onOpenLearningTools={() => setMobileLearningOpen(true)}
+                  onOpenRecentChats={() => setMobileRecentChatsOpen(true)}
                 />
 
-                {/* Mobile Drawer (When hamburger clicked on small screens) */}
-                {mobileSidebarOpen && (
-                  <div
-                    className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm md:hidden flex animate-fade-in"
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <div
-                      className="w-72 bg-slate-950 border-r border-white/10 h-full p-4 flex flex-col shadow-2xl"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-                            <Sparkles className="w-4 h-4 text-white" />
-                          </div>
-                          <span className="font-bold text-white">Manthan360</span>
-                        </div>
-                        <button
-                          onClick={() => setMobileSidebarOpen(false)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <Sidebar
-                        activeTab={activeTab}
-                        setActiveTab={(tab) => {
-                          setActiveTab(tab);
-                          setMobileSidebarOpen(false);
-                        }}
-                        noteSelected={!!focusedNote}
-                        onNewSession={() => {
-                          handleStartNewSession();
-                          setMobileSidebarOpen(false);
-                        }}
-                        recentNotes={recentNotes}
-                        onSelectRecentNote={(n) => {
-                          handleSelectNote(n);
-                          setMobileSidebarOpen(false);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
+                {/* Top Learning Features Bar */}
+                <TopFeatureBar
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  focusedNote={focusedNote}
+                  suitability={suitability}
+                />
 
-                {/* Mobile 3-Dot Learning Tools Menu */}
+                {/* Mobile Slide-over Drawer 1: Learning Tools [ ☰ ] */}
                 <MobileLearningMenu
-                  isOpen={mobileToolsOpen}
-                  onClose={() => setMobileToolsOpen(false)}
+                  isOpen={mobileLearningOpen}
+                  onClose={() => setMobileLearningOpen(false)}
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   noteSelected={!!focusedNote}
                 />
 
-                {/* Main Workspace Layout */}
+                {/* Mobile Slide-over Drawer 2: Recent Chats [ ⋮ ] */}
+                <RecentChatsMobileDrawer
+                  isOpen={mobileRecentChatsOpen}
+                  onClose={() => setMobileRecentChatsOpen(false)}
+                  sessions={chatSessions}
+                  activeSessionId={currentSessionId}
+                  onSelectSession={handleSelectSession}
+                  onNewChat={handleStartNewSession}
+                  onDeleteSession={handleDeleteSession}
+                />
+
+                {/* Main Unified Workspace Layout */}
                 <div className="flex-1 flex relative z-10 overflow-hidden" id="applet-core-shell">
-                  {/* Desktop Collapsible Navigation Sidebar */}
-                  <Sidebar
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    noteSelected={!!focusedNote}
+                  {/* Desktop Left: Recent Chats Sidebar */}
+                  <RecentChatsSidebar
+                    sessions={chatSessions}
+                    activeSessionId={currentSessionId}
+                    onSelectSession={handleSelectSession}
+                    onNewChat={handleStartNewSession}
+                    onDeleteSession={handleDeleteSession}
                     isCollapsed={sidebarCollapsed}
                     onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    onNewSession={handleStartNewSession}
                     recentNotes={recentNotes}
-                    onSelectRecentNote={handleSelectNote}
+                    onSelectNote={handleSelectNote}
                   />
 
-                  {/* Primary View Workspace */}
-                  <main className="flex-1 flex flex-col overflow-y-auto relative" id="applet-viewport">
+                  {/* Primary Center Viewport */}
+                  <main className="flex-1 flex flex-col overflow-y-auto relative bg-[#020617] light:bg-[#fcf7f8]" id="applet-viewport">
                     {/* Top Switcher Bar when inside a dedicated tool */}
-                    {!isConversationalView && activeTab !== "dashboard" && (
-                      <div className="px-6 py-2.5 bg-slate-900/40 border-b border-white/5 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md">
+                    {!isConversationalView && (
+                      <div className="px-6 py-2.5 bg-slate-950/70 light:bg-white/90 border-b border-white/5 light:border-rose-900/10 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md">
                         <button
                           type="button"
                           id="return-to-chat-btn"
                           onClick={() => setActiveTab("chat")}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 transition-all font-medium cursor-pointer"
+                          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-violet-600/20 light:bg-rose-100 hover:bg-violet-600/30 light:hover:bg-rose-200 text-violet-300 light:text-rose-950 border border-violet-500/30 light:border-rose-900/30 transition-all font-medium cursor-pointer"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>Conversational Study Companion</span>
+                          <MessageSquare className="w-3.5 h-3.5 text-violet-400 light:text-rose-800" />
+                          <span>Return to Study Chatbot</span>
                         </button>
 
                         {focusedNote && (
-                          <span className="text-slate-400 truncate max-w-xs hidden sm:inline">
-                            Active: <strong className="text-slate-200">{focusedNote.title}</strong>
+                          <span className="text-slate-400 light:text-rose-900 truncate max-w-xs hidden sm:inline">
+                            Document: <strong className="text-slate-200 light:text-rose-950">{focusedNote.title}</strong>
                           </span>
                         )}
                       </div>
                     )}
 
                     <div className="flex-1 flex flex-col" id="applet-viewport-inner">
-                      {/* Conversational AI Workspace */}
+                      {/* Primary Document-Grounded Chatbot Workspace */}
                       {isConversationalView && (
                         <MainChatWorkspace
                           user={user}
@@ -287,26 +334,19 @@ function AppContent() {
                           activeTab={activeTab}
                           setActiveTab={setActiveTab}
                           onNewSession={handleStartNewSession}
+                          currentSessionId={currentSessionId}
+                          onSessionUpdated={fetchChatSessions}
                         />
-                      )}
-
-                      {activeTab === "dashboard" && (
-                        <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
-                          <Dashboard
-                            user={user}
-                            onSelectNote={handleSelectNote}
-                            focusedNote={focusedNote}
-                            onUpdateNote={setFocusedNote}
-                            setActiveTab={setActiveTab}
-                          />
-                        </div>
                       )}
                       
                       {activeTab === "upload" && (
                         <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
                           <UploadNotes
                             user={user}
-                            onUploaded={handleSelectNote}
+                            onUploaded={(n) => {
+                              handleSelectNote(n);
+                              fetchRecentNotes();
+                            }}
                             setActiveTab={setActiveTab}
                           />
                         </div>
