@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import Loader from "../components/Loader";
 import { useLanguage } from "../context/LanguageContext";
-import { TRANSLATIONS } from "../translations";
+import { getTranslation } from "../translations";
 
 interface DashboardProps {
   user: FirebaseUser | null;
@@ -20,7 +20,7 @@ interface DashboardProps {
 
 export default function Dashboard({ user, onSelectNote, focusedNote, onUpdateNote, setActiveTab }: DashboardProps) {
   const { selectedLanguage } = useLanguage();
-  const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
+  const t = getTranslation(selectedLanguage);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [totalAttempts, setTotalAttempts] = useState(0);

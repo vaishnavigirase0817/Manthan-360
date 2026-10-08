@@ -29,6 +29,9 @@ const ProgressAnalytics = lazy(() => import("./pages/ProgressAnalytics"));
 const LearningVideos = lazy(() => import("./pages/LearningVideos"));
 const ExportHub = lazy(() => import("./pages/ExportHub"));
 
+import { useLanguage } from "./context/LanguageContext";
+import { getTranslation } from "./translations";
+
 function AppContent() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -42,6 +45,8 @@ function AppContent() {
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   
   const navigate = useNavigate();
+  const { selectedLanguage } = useLanguage();
+  const t = getTranslation(selectedLanguage);
 
   // Content suitability for top feature bar status
   const suitability = focusedNote ? analyzeContentSuitability(focusedNote.extractedText) : null;
@@ -304,20 +309,20 @@ function AppContent() {
                   <main className="flex-1 flex flex-col overflow-y-auto relative bg-[#020617] light:bg-[#fcf7f8]" id="applet-viewport">
                     {/* Top Switcher Bar when inside a dedicated tool */}
                     {!isConversationalView && (
-                      <div className="px-6 py-2.5 bg-slate-950/70 light:bg-white/90 border-b border-white/5 light:border-rose-900/10 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md">
+                      <div className="px-4 sm:px-6 py-2.5 bg-slate-950/80 border-b border-white/5 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md">
                         <button
                           type="button"
                           id="return-to-chat-btn"
                           onClick={() => setActiveTab("chat")}
-                          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-violet-600/20 light:bg-rose-100 hover:bg-violet-600/30 light:hover:bg-rose-200 text-violet-300 light:text-rose-950 border border-violet-500/30 light:border-rose-900/30 transition-all font-medium cursor-pointer"
+                          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 transition-all font-medium cursor-pointer"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-violet-400 light:text-rose-800" />
-                          <span>Return to Study Chatbot</span>
+                          <MessageSquare className="w-3.5 h-3.5 text-violet-400" />
+                          <span>{t.returnToChat}</span>
                         </button>
 
                         {focusedNote && (
-                          <span className="text-slate-400 light:text-rose-900 truncate max-w-xs hidden sm:inline">
-                            Document: <strong className="text-slate-200 light:text-rose-950">{focusedNote.title}</strong>
+                          <span className="text-slate-400 truncate max-w-xs hidden sm:inline">
+                            Document: <strong className="text-slate-200">{focusedNote.title}</strong>
                           </span>
                         )}
                       </div>

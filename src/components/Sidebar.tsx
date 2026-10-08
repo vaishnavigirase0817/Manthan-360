@@ -19,7 +19,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { TRANSLATIONS } from "../translations";
+import { getTranslation } from "../translations";
 import { Note } from "../types";
 import ManthanLogo from "./ManthanLogo";
 
@@ -45,7 +45,7 @@ export default function Sidebar({
   onSelectRecentNote,
 }: SidebarProps) {
   const { selectedLanguage } = useLanguage();
-  const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
+  const t = getTranslation(selectedLanguage);
 
   const learningTools = [
     { id: "dashboard", label: "Overview & Library", icon: LayoutDashboard, requiresNote: false, tooltip: "Overview & Library" },

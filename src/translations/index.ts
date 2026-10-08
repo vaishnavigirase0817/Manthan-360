@@ -34,13 +34,32 @@ export interface UIContent {
   roadmap: string;
   recentNotesFilter: string;
   errorMessages: string;
+  studyChatbot: string;
+  summary: string;
+  recentChatsTitle: string;
+  newChatBtn: string;
+  askAnythingPlaceholder: string;
+  welcomeHeadline: string;
+  uploadNotesCta: string;
+  askManthanCta: string;
+  explainSimpler: string;
+  giveExample: string;
+  makeFlashcards: string;
+  testMe: string;
+  showFlowchart: string;
+  thinkingMessage: string;
+  retrievingSectionsMessage: string;
+  viewNotesBtn: string;
+  activeContextLabel: string;
+  suggestedActionsLabel: string;
+  returnToChat: string;
 }
 
-export const TRANSLATIONS: Record<string, UIContent> = {
+export const TRANSLATIONS: Record<string, Partial<UIContent>> & { English: UIContent } = {
   English: {
     dashboard: "Dashboard",
     studyNotes: "My Uploaded Study Notes",
-    dragDropTitle: "Drag & drop your study files (PDF, Image, Text)",
+    dragDropTitle: "Drag & drop your study files (PDF, PPTX, Image, Text)",
     uploadButton: "Upload Study Notes",
     processing: "Processing Study Material...",
     recentNotes: "Recent Notes",
@@ -48,9 +67,9 @@ export const TRANSLATIONS: Record<string, UIContent> = {
     flowchart: "Interactive Concept Flowchart",
     mindMap: "Brainstorm Mind Map",
     quiz: "Active Recall Quiz",
-    flashcards: "Space-Repetition Flashcards",
-    presentation: "Academic Slides Presentation",
-    settings: "Student Settings & Profile",
+    flashcards: "Spaced-Repetition Flashcards",
+    presentation: "Academic Presentation",
+    settings: "Settings & Analytics",
     deleteConfirm: "Are you sure you want to delete this study note?",
     deleteSuccess: "Note deleted successfully.",
     deleteError: "Failed to delete note.",
@@ -69,15 +88,34 @@ export const TRANSLATIONS: Record<string, UIContent> = {
     prevBtn: "Prev",
     successHeader: "Compilation Completed",
     downloadPptx: "Download PPTX",
-    compileSlides: "Compile presentation Slides",
+    compileSlides: "Compile Presentation Slides",
     roadmap: "Study Milestone Roadmap",
     recentNotesFilter: "Recent Notes Filter",
-    errorMessages: "Something went wrong. Please try again."
+    errorMessages: "Something went wrong. Please try again.",
+    studyChatbot: "Study Chatbot",
+    summary: "AI Summary",
+    recentChatsTitle: "Recent Chats",
+    newChatBtn: "New Chat",
+    askAnythingPlaceholder: "Ask anything about your notes or type a topic...",
+    welcomeHeadline: "Your AI-powered study companion. Upload 10–300+ page notes, PPTs, or ask anything you want to learn.",
+    uploadNotesCta: "Upload Notes / Book PDF",
+    askManthanCta: "Ask Manthan360",
+    explainSimpler: "Explain Simpler",
+    giveExample: "Give Example",
+    makeFlashcards: "Make Flashcards",
+    testMe: "Test Me",
+    showFlowchart: "Show Flowchart",
+    thinkingMessage: "Manthan360 is thinking…",
+    retrievingSectionsMessage: "Manthan360 is retrieving relevant sections from your notes...",
+    viewNotesBtn: "View Notes",
+    activeContextLabel: "Active Context",
+    suggestedActionsLabel: "Suggested Actions",
+    returnToChat: "Return to Study Chatbot"
   },
   Hindi: {
     dashboard: "डैशबोर्ड",
     studyNotes: "मेरे अपलोड किए गए अध्ययन नोट्स",
-    dragDropTitle: "अध्ययन फ़ाइलें खींचें और छोड़ें (PDF, छवि, पाठ)",
+    dragDropTitle: "अध्ययन फ़ाइलें खींचें और छोड़ें (PDF, PPTX, छवि, पाठ)",
     uploadButton: "अध्ययन नोट्स अपलोड करें",
     processing: "अध्ययन सामग्री संसाधित की जा रही है...",
     recentNotes: "हाल ही के नोट्स",
@@ -86,7 +124,7 @@ export const TRANSLATIONS: Record<string, UIContent> = {
     mindMap: "मंथन माइंड मैप",
     quiz: "सक्रिय स्मरण प्रश्नोत्तरी",
     flashcards: "स्थानबद्ध-पुनरावृत्ति फ्लैशकार्ड",
-    presentation: "अकादमिक स्लाइड प्रस्तुति",
+    presentation: "अकादमिक प्रस्तुति",
     settings: "छात्र सेटिंग्स और प्रोफाइल",
     deleteConfirm: "क्या आप वाकई इस अध्ययन नोट को हटाना चाहते हैं?",
     deleteSuccess: "नोट सफलतापूर्वक हटाया गया।",
@@ -109,7 +147,26 @@ export const TRANSLATIONS: Record<string, UIContent> = {
     compileSlides: "प्रस्तुति स्लाइड संकलित करें",
     roadmap: "अध्ययन मील का पत्थर रोडमैप",
     recentNotesFilter: "हाल के नोट्स फ़िल्टर",
-    errorMessages: "कुछ गलत हो गया। कृपया पुन: प्रयास करें।"
+    errorMessages: "कुछ गलत हो गया। कृपया पुन: प्रयास करें।",
+    studyChatbot: "अध्ययन चैटबॉट",
+    summary: "एआई सारांश",
+    recentChatsTitle: "हाल की बातचीत",
+    newChatBtn: "नई बातचीत",
+    askAnythingPlaceholder: "अपने नोट्स के बारे में कुछ भी पूछें या विषय लिखें...",
+    welcomeHeadline: "आपका एआई अध्ययन साथी। 10-300+ पृष्ठों के नोट्स, पीपीटी अपलोड करें या जो सीखना चाहें पूछें।",
+    uploadNotesCta: "नोट्स / पुस्तक PDF अपलोड करें",
+    askManthanCta: "मंथन360 से पूछें",
+    explainSimpler: "सरल भाषा में समझाएं",
+    giveExample: "उदाहरण दें",
+    makeFlashcards: "फ्लैशकार्ड बनाएं",
+    testMe: "मेरी परीक्षा लें",
+    showFlowchart: "फ़्लोचार्ट देखें",
+    thinkingMessage: "मंथन360 विचार कर रहा है…",
+    retrievingSectionsMessage: "मंथन360 आपके नोट्स से प्रासंगिक अनुभाग खोज रहा है...",
+    viewNotesBtn: "नोट्स देखें",
+    activeContextLabel: "सक्रिय संदर्भ",
+    suggestedActionsLabel: "सुझाए गए विषय",
+    returnToChat: "अध्ययन चैटबॉट पर वापस जाएं"
   },
   Marathi: {
     dashboard: "डॅशबोर्ड",
@@ -146,7 +203,26 @@ export const TRANSLATIONS: Record<string, UIContent> = {
     compileSlides: "स्लाइड्स संकलित करा",
     roadmap: "मैलचा दगड रोडमॅप",
     recentNotesFilter: "नुकतेच फिल्टर करा",
-    errorMessages: "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा।"
+    errorMessages: "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा।",
+    studyChatbot: "अभ्यास चॅटबॉट",
+    summary: "एआय सारांश",
+    recentChatsTitle: "नुकत्याच झालेल्या गप्पा",
+    newChatBtn: "नवीन संभाषण",
+    askAnythingPlaceholder: "तुमच्या नोट्सबद्दल काहीही विचारा किंवा विषय टाइप करा...",
+    welcomeHeadline: "तुमचा एआय अभ्यास सोबती. 10-300+ पानांच्या नोट्स, पीपीटी अपलोड करा किंवा काहीही विचारा.",
+    uploadNotesCta: "नोट्स / पुस्तक PDF अपलोड करा",
+    askManthanCta: "मंथन360 ला विचारा",
+    explainSimpler: "सोप्या भाषेत समजावून सांगा",
+    giveExample: "उदाहरण द्या",
+    makeFlashcards: "फ्लॅशकार्ड्स बनवा",
+    testMe: "माझी परीक्षा घ्या",
+    showFlowchart: "फ्लोचार्ट दाखवा",
+    thinkingMessage: "मंथन360 विचार करत आहे…",
+    retrievingSectionsMessage: "मंथन360 तुमच्या नोट्समधून संबंधित विभाग शोधत आहे...",
+    viewNotesBtn: "नोट्स पहा",
+    activeContextLabel: "सक्रिय संदर्भ",
+    suggestedActionsLabel: "सुचवलेल्या क्रिया",
+    returnToChat: "अभ्यास चॅटबॉटवर परत जा"
   },
   Gujarati: {
     dashboard: "ડેશબોર્ડ",
@@ -408,3 +484,13 @@ export const TRANSLATIONS: Record<string, UIContent> = {
     errorMessages: "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
   }
 };
+
+export function getTranslation(language: string): UIContent {
+  const selected = TRANSLATIONS[language];
+  if (!selected) return TRANSLATIONS.English;
+  // Merge with English defaults so any missing key gracefully falls back
+  return {
+    ...TRANSLATIONS.English,
+    ...selected,
+  };
+}

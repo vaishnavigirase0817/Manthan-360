@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Note } from "../types";
 import { ContentSuitability } from "../services/contentAnalyzer";
+import { useLanguage } from "../context/LanguageContext";
+import { getTranslation } from "../translations";
 
 interface TopFeatureBarProps {
   activeTab: string;
@@ -28,16 +30,19 @@ export default function TopFeatureBar({
   focusedNote,
   suitability,
 }: TopFeatureBarProps) {
+  const { selectedLanguage } = useLanguage();
+  const t = getTranslation(selectedLanguage);
+
   const tools = [
-    { id: "chat", label: "Study Chatbot", icon: MessageSquare, requiresNote: false },
-    { id: "summary", label: "AI Summary", icon: FileText, requiresNote: true },
-    { id: "flashcards", label: "Flashcards", icon: Layers, requiresNote: true },
-    { id: "quiz", label: "Active Recall Quiz", icon: Award, requiresNote: true },
-    { id: "mindmap", label: "Mind Map", icon: GitGraph, requiresNote: true },
-    { id: "flowchart", label: "Flowchart", icon: Share2, requiresNote: true },
-    { id: "planner", label: "Roadmap", icon: CalendarRange, requiresNote: true },
-    { id: "export", label: "Presentation", icon: DownloadCloud, requiresNote: true },
-    { id: "upload", label: "Upload Notes", icon: UploadCloud, requiresNote: false },
+    { id: "chat", label: t.studyChatbot, icon: MessageSquare, requiresNote: false },
+    { id: "summary", label: t.summary, icon: FileText, requiresNote: true },
+    { id: "flashcards", label: t.flashcards, icon: Layers, requiresNote: true },
+    { id: "quiz", label: t.quiz, icon: Award, requiresNote: true },
+    { id: "mindmap", label: t.mindMap, icon: GitGraph, requiresNote: true },
+    { id: "flowchart", label: t.flowchart, icon: Share2, requiresNote: true },
+    { id: "planner", label: t.roadmap, icon: CalendarRange, requiresNote: true },
+    { id: "export", label: t.presentation, icon: DownloadCloud, requiresNote: true },
+    { id: "upload", label: t.uploadButton, icon: UploadCloud, requiresNote: false },
   ];
 
   return (

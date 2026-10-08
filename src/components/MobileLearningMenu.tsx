@@ -16,7 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { TRANSLATIONS } from "../translations";
+import { getTranslation } from "../translations";
 
 interface MobileLearningMenuProps {
   isOpen: boolean;
@@ -34,7 +34,7 @@ export default function MobileLearningMenu({
   noteSelected,
 }: MobileLearningMenuProps) {
   const { selectedLanguage } = useLanguage();
-  const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
+  const t = getTranslation(selectedLanguage);
 
   if (!isOpen) return null;
 

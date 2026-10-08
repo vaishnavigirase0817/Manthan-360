@@ -1,14 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SummaryData } from "../types";
 import { 
   FileText, Volume2, VolumeX, List, HelpCircle, Copy, Check, Sparkles, 
   Play, Pause, Square, Headphones, Eye 
 } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface SummaryCardProps {
   summary: SummaryData;
   noteTitle: string;
 }
+
+const LANG_VOICE_MAP: Record<string, string> = {
+  English: "en-US",
+  Hindi: "hi-IN",
+  Marathi: "mr-IN",
+  Gujarati: "gu-IN",
+  Tamil: "ta-IN",
+  Telugu: "te-IN",
+  Kannada: "kn-IN",
+  Malayalam: "ml-IN",
+  Bengali: "bn-IN",
+  Punjabi: "pa-IN",
+};
 
 export default function SummaryCard({ summary, noteTitle }: SummaryCardProps) {
   const [activeTab, setActiveTab] = useState<"cheat" | "points" | "detailed" | "short">("cheat");
@@ -16,16 +30,16 @@ export default function SummaryCard({ summary, noteTitle }: SummaryCardProps) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [synth, setSynth] = useState<SpeechSynthesis | null>(null);
+  const isSpeakingRef = useRef(false);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const { selectedLanguage } = useLanguage();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      setSynth(window.speechSynthesis);
-    }
     return () => {
-      if (window.speechSynthesis) {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
+      isSpeakingRef.current = false;
     };
   }, []);
 
@@ -46,72 +60,84 @@ export default function SummaryCard({ summary, noteTitle }: SummaryCardProps) {
 
   const getActiveText = () => {
     return activeTab === "cheat"
-      ? summary.revisionNotes.replace(/[#*`_]/g, "") // remove markdown structural syntax for fluid voice speech
+      ? summary.revisionNotes.replace(/[#*`_]/g, "") // clean markdown syntax for fluid audio synthesis
       : activeTab === "points"
-      ? "Key Takeaways: " + summary.keyPoints.join(". ")
+      ? summary.keyPoints.join(". ")
       : activeTab === "detailed"
       ? summary.detailedSummary
       : summary.shortSummary;
   };
 
-  const speakText = () => {
-    if (!synth) return;
+  const playSpeechWithRate = (rate: number) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
 
-    // Clear active utterance
-    synth.cancel();
+    window.speechSynthesis.cancel();
 
     const textToRead = getActiveText();
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.rate = playbackSpeed;
+    if (!textToRead || textToRead.trim().length === 0) return;
 
-    utterance.onerror = () => {
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.rate = rate;
+    utterance.lang = LANG_VOICE_MAP[selectedLanguage] || "en-US";
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+      isSpeakingRef.current = true;
+    };
+
+    utterance.onerror = (e) => {
+      console.warn("TTS playback status:", e);
       setIsSpeaking(false);
       setIsPaused(false);
+      isSpeakingRef.current = false;
     };
+
     utterance.onend = () => {
       setIsSpeaking(false);
       setIsPaused(false);
+      isSpeakingRef.current = false;
     };
 
+    currentUtteranceRef.current = utterance;
     setIsSpeaking(true);
     setIsPaused(false);
-    synth.speak(utterance);
+    isSpeakingRef.current = true;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const speakText = () => {
+    playSpeechWithRate(playbackSpeed);
   };
 
   const handlePause = () => {
-    if (!synth) return;
-    synth.pause();
-    setIsPaused(true);
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
   };
 
   const handleResume = () => {
-    if (!synth) return;
-    synth.resume();
-    setIsPaused(false);
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+    }
   };
 
   const handleStop = () => {
-    if (!synth) return;
-    synth.cancel();
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     setIsSpeaking(false);
     setIsPaused(false);
+    isSpeakingRef.current = false;
   };
 
   const handleSpeedChange = (speed: number) => {
     setPlaybackSpeed(speed);
-    // If speaking, restart speech immediately with updated velocity rate
-    if (isSpeaking) {
-      setTimeout(() => {
-        if (!synth) return;
-        synth.cancel();
-        const textToRead = getActiveText();
-        const utterance = new SpeechSynthesisUtterance(textToRead);
-        utterance.rate = speed;
-        utterance.onerror = () => setIsSpeaking(false);
-        utterance.onend = () => setIsSpeaking(false);
-        setIsPaused(false);
-        synth.speak(utterance);
-      }, 100);
+    // If speech is actively running, immediately restart at the new rate so it takes effect instantly
+    if (isSpeakingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
+      playSpeechWithRate(speed);
     }
   };
 
@@ -244,13 +270,14 @@ export default function SummaryCard({ summary, noteTitle }: SummaryCardProps) {
             <select
               value={playbackSpeed}
               onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+              id="summary-tts-speed-select"
               className="bg-transparent border-none text-[11px] font-mono font-bold text-violet-300 focus:outline-none cursor-pointer"
             >
+              <option value="0.5" className="bg-slate-900 text-white">0.5x (Slow)</option>
               <option value="0.75" className="bg-slate-900 text-white">0.75x</option>
               <option value="1.0" className="bg-slate-900 text-white">1.0x (Normal)</option>
               <option value="1.25" className="bg-slate-900 text-white">1.25x</option>
-              <option value="1.5" className="bg-slate-900 text-white">1.5x</option>
-              <option value="1.75" className="bg-slate-900 text-white">1.75x</option>
+              <option value="1.5" className="bg-slate-900 text-white">1.5x (Fast)</option>
               <option value="2.0" className="bg-slate-900 text-white">2.0x</option>
             </select>
           </div>
@@ -270,11 +297,7 @@ export default function SummaryCard({ summary, noteTitle }: SummaryCardProps) {
             id={`summary-tab-btn-${tab.id}`}
             onClick={() => {
               setActiveTab(tab.id as any);
-              if (synth && isSpeaking) {
-                synth.cancel();
-                setIsSpeaking(false);
-                setIsPaused(false);
-              }
+              handleStop();
             }}
             className={`px-4 py-2 text-[10px] font-mono font-bold tracking-wider uppercase border-b-2 transition-all whitespace-nowrap cursor-pointer ${
               activeTab === tab.id

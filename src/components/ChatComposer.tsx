@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Plus, Sparkles, Paperclip, Loader2, ArrowUp, CornerDownLeft } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+import { getTranslation } from "../translations";
 
 interface ChatComposerProps {
   onSendMessage: (message: string) => void;
@@ -17,11 +19,15 @@ export default function ChatComposer({
   onSuggestionClick,
   isLoading = false,
   disabled = false,
-  placeholder = "Ask Manthan360 anything about your study material...",
+  placeholder,
   hasDocument = false,
 }: ChatComposerProps) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { selectedLanguage } = useLanguage();
+  const t = getTranslation(selectedLanguage);
+
+  const activePlaceholder = placeholder || t.askAnythingPlaceholder;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -49,30 +55,30 @@ export default function ChatComposer({
 
   const quickPrompts = hasDocument
     ? [
-        { label: "Summarize this", action: "summary" },
-        { label: "Create flashcards", action: "flashcards" },
-        { label: "Make a quiz", action: "quiz" },
-        { label: "Explain simply", action: "explain_simply" },
-        { label: "Create mind map", action: "mindmap" },
-        { label: "Interactive flowchart", action: "flowchart" },
-        { label: "Study roadmap", action: "planner" },
+        { label: t.summary, action: "summary" },
+        { label: t.makeFlashcards, action: "flashcards" },
+        { label: t.testMe, action: "quiz" },
+        { label: t.explainSimpler, action: "explain_simply" },
+        { label: t.mindMap, action: "mindmap" },
+        { label: t.showFlowchart, action: "flowchart" },
+        { label: t.roadmap, action: "planner" },
       ]
     : [
-        { label: "Explain like I'm a beginner", prompt: "Explain how to study complex engineering and science topics like I'm a beginner." },
-        { label: "How does active recall work?", prompt: "Explain the science of active recall and spaced repetition for exam prep." },
-        { label: "Create a 5-day study plan", prompt: "Help me create an effective 5-day study plan for my upcoming exam." },
+        { label: "Active Recall", prompt: "Explain the science of active recall and spaced repetition for exam prep." },
+        { label: "Explain Recursion", prompt: "Explain recursion simply with an intuitive beginner example." },
+        { label: "Study Plan", prompt: "Help me create an effective 5-day study plan for my upcoming exam." },
       ];
 
   return (
     <div
       id="chat-composer-container"
-      className="sticky bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#020617] via-[#020617]/95 to-transparent pt-3 pb-4 px-3 sm:px-6"
+      className="sticky bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#020617] via-[#020617]/95 to-transparent pt-2 pb-3.5 sm:pb-4 px-2.5 sm:px-6"
     >
       <div className="max-w-4xl mx-auto flex flex-col gap-2">
         {/* Quick Suggestion Strip */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs">
-          <span className="text-[11px] font-medium text-slate-400 shrink-0 flex items-center gap-1 mr-1">
-            <Sparkles className="w-3 h-3 text-violet-400" /> Suggestions:
+          <span className="text-[10px] sm:text-[11px] font-medium text-slate-400 shrink-0 flex items-center gap-1 mr-0.5">
+            <Sparkles className="w-3 h-3 text-violet-400" /> {t.suggestedActionsLabel}:
           </span>
           {quickPrompts.map((item, idx) => (
             <button
@@ -87,7 +93,7 @@ export default function ChatComposer({
                 }
               }}
               disabled={isLoading || disabled}
-              className="shrink-0 px-3 py-1 rounded-full bg-slate-900/80 hover:bg-violet-950/40 text-slate-300 hover:text-violet-200 border border-white/10 hover:border-violet-500/40 transition-all cursor-pointer shadow-sm text-xs"
+              className="shrink-0 px-2.5 sm:px-3 py-1 rounded-full bg-slate-900/90 hover:bg-violet-950/40 text-slate-300 hover:text-violet-200 border border-white/10 hover:border-violet-500/40 transition-all cursor-pointer shadow-sm text-[11px] sm:text-xs"
             >
               {item.label}
             </button>
@@ -118,7 +124,7 @@ export default function ChatComposer({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={disabled || isLoading}
-            placeholder={placeholder}
+            placeholder={activePlaceholder}
             className="flex-1 max-h-32 min-h-[40px] bg-transparent text-sm text-slate-100 placeholder-slate-400 focus:outline-none resize-none py-2 px-1 font-sans"
           />
 
