@@ -11,6 +11,8 @@ import { analyzeContentSuitability, ContentSuitability } from "../services/conte
 import { chunkDocument, retrieveRelevantChunks, DocumentChunk } from "../services/documentChunker";
 import { useLanguage } from "../context/LanguageContext";
 import { getTranslation } from "../translations";
+import { evaluateSimpleMath } from "../services/simpleMathEvaluator";
+import MarkdownRenderer from "./MarkdownRenderer";
 import {
   Sparkles,
   User,
@@ -34,6 +36,10 @@ import {
   Zap,
   Bookmark,
   Search,
+  Copy,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 
 interface MainChatWorkspaceProps {
@@ -66,6 +72,9 @@ export default function MainChatWorkspace({
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [lastCitations, setLastCitations] = useState<string[]>([]);
   const [chatMode, setChatMode] = useState<"simple" | "study">(focusedNote ? "study" : "simple");
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const { selectedLanguage } = useLanguage();
   const t = getTranslation(selectedLanguage);
@@ -148,6 +157,139 @@ export default function MainChatWorkspace({
     loadSession();
   }, [activeSessionKey, focusedNote?.id, user?.uid, selectedLanguage, chatMode]);
 
+  const handleCopyMessage = async (text: string, idx: number) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopiedIndex(idx);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.warn("Failed to copy message:", err);
+    }
+  };
+
+  const handleStartEdit = (idx: number, content: string) => {
+    setEditingIndex(idx);
+    setEditText(content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setEditText("");
+  };
+
+  const handleSaveAndResend = async (idx: number, updatedText: string) => {
+    if (!updatedText.trim() || loading) return;
+    setEditingIndex(null);
+    setEditText("");
+
+    const cleanText = updatedText.trim();
+    // 1. Preserve all messages prior to the edited message
+    const priorMessages = messages.slice(0, idx);
+
+    // 2. Create updated user message
+    const updatedUserMsg: ChatMessage = {
+      role: "user",
+      content: cleanText,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    // 3. New history with obsolete subsequent messages truncated
+    const newHistory = [...priorMessages, updatedUserMsg];
+    setMessages(newHistory);
+    setLoading(true);
+
+    // 4. Instant arithmetic evaluation in Simple Chat
+    if (chatMode === "simple") {
+      const directMath = evaluateSimpleMath(cleanText);
+      if (directMath) {
+        const aiMsg: ChatMessage = {
+          role: "assistant",
+          content: directMath,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        const finalHistory = [...newHistory, aiMsg];
+        setMessages(finalHistory);
+        setLoading(false);
+
+        if (user) {
+          await setDoc(doc(db, "chatSessions", activeSessionKey), {
+            id: activeSessionKey,
+            userId: user.uid,
+            noteId: "general",
+            title: cleanText.slice(0, 36),
+            messages: finalHistory,
+            updatedAt: new Date().toISOString(),
+          });
+          if (onSessionUpdated) onSessionUpdated();
+        }
+        return;
+      }
+    }
+
+    // 5. Normal AI query with relevant context
+    try {
+      let contextPayload = "";
+      let retrievedCitations: string[] = [];
+
+      if (chatMode === "study" && focusedNote && suitability?.isValid && documentChunks.length > 0) {
+        const retrieval = retrieveRelevantChunks(documentChunks, cleanText, 4);
+        retrievedCitations = retrieval.sources;
+
+        if (retrieval.relevantChunks.length > 0) {
+          contextPayload = retrieval.relevantChunks
+            .map((c) => `[Source: Page ${c.pageNumber || 1}]\n${c.text}`)
+            .join("\n\n---\n\n");
+        } else {
+          contextPayload = focusedNote.extractedText.slice(0, 4000);
+        }
+      }
+
+      setLastCitations(retrievedCitations);
+
+      const aiResponseText = await getTutorCorrection(newHistory, contextPayload);
+
+      let finalAiResponse = aiResponseText;
+      if (chatMode === "study" && retrievedCitations.length > 0 && !finalAiResponse.includes("Source:")) {
+        finalAiResponse += `\n\n📌 *Referenced from:* ${retrievedCitations.join(", ")}`;
+      }
+
+      const aiMsg: ChatMessage = {
+        role: "assistant",
+        content: finalAiResponse,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      const finalHistory = [...newHistory, aiMsg];
+      setMessages(finalHistory);
+
+      if (user) {
+        await setDoc(doc(db, "chatSessions", activeSessionKey), {
+          id: activeSessionKey,
+          userId: user.uid,
+          noteId: (chatMode === "study" && focusedNote) ? focusedNote.id : "general",
+          title: cleanText.slice(0, 36),
+          messages: finalHistory,
+          updatedAt: new Date().toISOString(),
+        });
+        if (onSessionUpdated) onSessionUpdated();
+      }
+    } catch (err: any) {
+      console.error("Manthan360 Chat Edit Error:", err);
+      setError("Manthan360 couldn't complete that edited response. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
 
@@ -166,11 +308,39 @@ export default function MainChatWorkspace({
     setMessages(newHistory);
     setLoading(true);
 
+    // 2. Instant arithmetic check in Simple Chat mode (0ms response)
+    if (chatMode === "simple") {
+      const directMath = evaluateSimpleMath(userQueryText);
+      if (directMath) {
+        const aiMsg: ChatMessage = {
+          role: "assistant",
+          content: directMath,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        const finalHistory = [...newHistory, aiMsg];
+        setMessages(finalHistory);
+        setLoading(false);
+
+        if (user) {
+          await setDoc(doc(db, "chatSessions", activeSessionKey), {
+            id: activeSessionKey,
+            userId: user.uid,
+            noteId: "general",
+            title: userQueryText.slice(0, 36),
+            messages: finalHistory,
+            updatedAt: new Date().toISOString(),
+          });
+          if (onSessionUpdated) onSessionUpdated();
+        }
+        return;
+      }
+    }
+
     try {
       let contextPayload = "";
       let retrievedCitations: string[] = [];
 
-      // 2. ONLY in Study Mode: Intelligent Relevant Chunk Retrieval
+      // 3. ONLY in Study Mode: Intelligent Relevant Chunk Retrieval
       if (chatMode === "study" && focusedNote && suitability?.isValid && documentChunks.length > 0) {
         const retrieval = retrieveRelevantChunks(documentChunks, userQueryText, 4);
         retrievedCitations = retrieval.sources;
@@ -186,7 +356,7 @@ export default function MainChatWorkspace({
 
       setLastCitations(retrievedCitations);
 
-      // 3. Call AI endpoint with ONLY relevant context (or blank context for fast simple chat)
+      // 4. Call AI endpoint with ONLY relevant context (or blank context for fast simple chat)
       const aiResponseText = await getTutorCorrection(newHistory, contextPayload);
 
       // Append Citation Tags if response was grounded from specific pages
@@ -204,7 +374,7 @@ export default function MainChatWorkspace({
       const finalHistory = [...newHistory, aiMsg];
       setMessages(finalHistory);
 
-      // 4. Save to Firestore
+      // 5. Save to Firestore
       if (user) {
         await setDoc(doc(db, "chatSessions", activeSessionKey), {
           id: activeSessionKey,
@@ -322,7 +492,7 @@ export default function MainChatWorkspace({
       )}
 
       {/* Main Conversation Flow Area */}
-      <div className="flex-1 overflow-y-auto px-3 py-6 sm:px-6 md:px-8 space-y-6 max-w-4xl mx-auto w-full no-scrollbar">
+      <div className="flex-1 overflow-y-auto px-3 py-6 sm:px-6 md:px-8 space-y-6 max-w-4xl mx-auto w-full no-scrollbar pb-10 sm:pb-16">
         {/* Welcome State when no messages or new session */}
         {messages.length <= 1 && !focusedNote && (
           <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-center animate-fade-in" id="workspace-welcome-state">
@@ -408,12 +578,13 @@ export default function MainChatWorkspace({
         {/* Message Stream */}
         {messages.map((msg, idx) => {
           const isUser = msg.role === "user";
+          const isEditing = editingIndex === idx;
 
           return (
             <div
               key={idx}
               id={`chat-msg-${idx}`}
-              className={`flex gap-2.5 sm:gap-3 animate-fade-in ${
+              className={`group flex gap-2.5 sm:gap-3 animate-fade-in ${
                 isUser ? "justify-end" : "justify-start"
               }`}
             >
@@ -424,22 +595,123 @@ export default function MainChatWorkspace({
               )}
 
               <div
-                className={`max-w-[90%] sm:max-w-[80%] rounded-2xl p-3.5 sm:p-4 text-xs sm:text-sm leading-relaxed ${
+                className={`max-w-[92%] sm:max-w-[82%] rounded-2xl p-3.5 sm:p-4 text-xs sm:text-sm leading-relaxed transition-all ${
                   isUser
                     ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/10 rounded-br-sm"
                     : "bg-slate-900/90 text-slate-200 border border-white/10 shadow-md rounded-bl-sm"
                 }`}
               >
-                {!isUser && (
-                  <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/5">
-                    <span className="font-semibold text-xs text-violet-300">Manthan360</span>
-                    {msg.timestamp && (
-                      <span className="text-[10px] text-slate-400 font-mono">{msg.timestamp}</span>
+                {!isUser ? (
+                  <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-violet-300">Manthan360</span>
+                      {msg.timestamp && (
+                        <span className="text-[10px] text-slate-400 font-mono">{msg.timestamp}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyMessage(msg.content, idx)}
+                      title="Copy response"
+                      aria-label="Copy response text"
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
+                    >
+                      {copiedIndex === idx ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span className="text-[10px] text-emerald-400 font-medium">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span className="hidden group-hover:inline text-[10px]">Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 mb-1.5 pb-1 border-b border-white/10">
+                    <span className="text-[10px] text-violet-200/80 font-mono">
+                      {msg.timestamp || "You"}
+                    </span>
+                    {!isEditing && (
+                      <div className="flex items-center gap-1 opacity-90 sm:opacity-75 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(msg.content, idx)}
+                          title="Copy message"
+                          aria-label="Copy user message"
+                          className="p-1 rounded-md hover:bg-white/20 text-white/90 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
+                        >
+                          {copiedIndex === idx ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-300" />
+                              <span className="text-[10px] text-emerald-300 font-semibold">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span className="text-[10px]">Copy</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(idx, msg.content)}
+                          title="Edit message"
+                          aria-label="Edit user message"
+                          disabled={loading}
+                          className="p-1 rounded-md hover:bg-white/20 text-white/90 transition-colors flex items-center gap-1 text-[11px] cursor-pointer disabled:opacity-40"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span className="text-[10px]">Edit</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
 
-                <div className="whitespace-pre-wrap font-sans break-words">{msg.content}</div>
+                {isUser && isEditing ? (
+                  <div className="space-y-2 pt-1" id={`inline-edit-box-${idx}`}>
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSaveAndResend(idx, editText);
+                        } else if (e.key === "Escape") {
+                          handleCancelEdit();
+                        }
+                      }}
+                      rows={3}
+                      autoFocus
+                      aria-label="Edit your message"
+                      className="w-full p-2.5 rounded-xl bg-slate-950/80 border border-violet-400/50 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none font-sans"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                        <span>Cancel</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveAndResend(idx, editText)}
+                        disabled={!editText.trim() || loading}
+                        className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-xs transition-all flex items-center gap-1 shadow-md cursor-pointer"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>Save & Resend</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <MarkdownRenderer content={msg.content} />
+                )}
 
                 {/* Follow-up & Dynamic Learning Action Buttons */}
                 {!isUser && (
@@ -590,7 +862,7 @@ export default function MainChatWorkspace({
           </div>
         )}
 
-        <div ref={chatBottomRef} />
+        <div ref={chatBottomRef} className="h-8 shrink-0" />
       </div>
 
       {/* Bottom Fixed Composer */}

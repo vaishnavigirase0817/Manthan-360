@@ -250,10 +250,10 @@ function AppContent() {
             !user ? (
               <Navigate to="/" replace />
             ) : (
-              <div className="h-screen max-h-screen bg-[#020617] light:bg-[#fdf5f6] flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200 relative text-slate-100 light:text-slate-900 overflow-hidden" id="manthan-360-app">
+              <div className="h-screen max-h-screen bg-[#020617] light:bg-[#f8fafc] flex flex-col font-sans selection:bg-violet-500/30 selection:text-violet-200 relative text-slate-100 light:text-slate-900 overflow-hidden" id="manthan-360-app">
                 {/* Background Decorative Glows */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/20 light:bg-rose-900/10 rounded-full blur-[120px] pointer-events-none z-0" />
-                <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/20 light:bg-rose-800/10 rounded-full blur-[100px] pointer-events-none z-0" />
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/20 light:bg-violet-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
+                <div className="absolute bottom-[-5%] right-[-5%] w-[35%] h-[35%] bg-blue-600/20 light:bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none z-0" />
 
                 {/* Modern Fixed Top Navbar */}
                 <Navbar
@@ -308,29 +308,34 @@ function AppContent() {
                   />
 
                   {/* Primary Center Viewport */}
-                  <main className="flex-1 flex flex-col overflow-y-auto relative bg-[#020617] light:bg-[#fcf7f8]" id="applet-viewport">
+                  <main
+                    className={`flex-1 flex flex-col h-full relative bg-[#020617] light:bg-[#f8fafc] ${
+                      isConversationalView ? "overflow-hidden" : "overflow-y-auto"
+                    }`}
+                    id="applet-viewport"
+                  >
                     {/* Top Switcher Bar when inside a dedicated tool */}
                     {!isConversationalView && (
-                      <div className="px-4 sm:px-6 py-2.5 bg-slate-950/80 border-b border-white/5 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md">
+                      <div className="px-4 sm:px-6 py-2.5 bg-slate-950/80 light:bg-white/90 border-b border-white/5 light:border-black/5 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md shadow-sm">
                         <button
                           type="button"
                           id="return-to-chat-btn"
                           onClick={() => setActiveTab("chat")}
-                          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 transition-all font-medium cursor-pointer"
+                          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 light:text-violet-700 border border-violet-500/30 transition-all font-medium cursor-pointer"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-violet-400" />
+                          <MessageSquare className="w-3.5 h-3.5 text-violet-400 light:text-violet-600" />
                           <span>{t.returnToChat}</span>
                         </button>
 
                         {focusedNote && (
-                          <span className="text-slate-400 truncate max-w-xs hidden sm:inline">
-                            Document: <strong className="text-slate-200">{focusedNote.title}</strong>
+                          <span className="text-slate-400 light:text-slate-600 truncate max-w-xs hidden sm:inline">
+                            Document: <strong className="text-slate-200 light:text-slate-900">{focusedNote.title}</strong>
                           </span>
                         )}
                       </div>
                     )}
 
-                    <div className="flex-1 flex flex-col" id="applet-viewport-inner">
+                    <div className="flex-1 flex flex-col min-h-0" id="applet-viewport-inner">
                       {/* Primary Document-Grounded Chatbot Workspace */}
                       {isConversationalView && (
                         <MainChatWorkspace

@@ -72,7 +72,7 @@ export default function ChatComposer({
   return (
     <div
       id="chat-composer-container"
-      className="sticky bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#020617] via-[#020617]/95 to-transparent pt-2 pb-3.5 sm:pb-4 px-2.5 sm:px-6"
+      className="sticky bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#020617] via-[#020617]/95 to-transparent light:from-[#f8fafc] light:via-[#f8fafc]/95 pt-2 pb-3.5 sm:pb-4 px-2.5 sm:px-6"
     >
       <div className="max-w-4xl mx-auto flex flex-col gap-2">
         {/* Quick Suggestion Strip */}

@@ -14,62 +14,55 @@ export default function ManthanLogo({
 }: ManthanLogoProps) {
   const [imageError, setImageError] = useState(false);
 
-  const heights = {
-    sm: "h-7 sm:h-8",
-    md: "h-8 sm:h-9",
-    lg: "h-11 sm:h-12",
-  };
-
-  const iconDimensions = {
+  const iconSizes = {
     sm: "w-7 h-7 sm:w-8 sm:h-8",
     md: "w-8 h-8 sm:w-9 sm:h-9",
     lg: "w-11 h-11 sm:w-12 sm:h-12",
   };
 
   const textSizes = {
-    sm: "text-sm",
-    md: "text-base",
-    lg: "text-xl",
+    sm: "text-sm sm:text-base",
+    md: "text-base sm:text-lg",
+    lg: "text-xl sm:text-2xl",
   };
+
+  const logoIcon = (
+    <div className={`relative shrink-0 flex items-center justify-center ${iconSizes[size]}`}>
+      {!imageError ? (
+        <img
+          src="/assets/manthan360-logo.svg"
+          alt="Manthan360 Logo"
+          onError={() => setImageError(true)}
+          className="w-full h-full object-contain shrink-0"
+        />
+      ) : (
+        <div className="w-full h-full rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-violet-500/20">
+          <Sparkles className="w-4 h-4 text-white" />
+        </div>
+      )}
+    </div>
+  );
 
   if (iconOnly) {
     return (
       <div className={`flex items-center justify-center select-none ${className}`} id="manthan360-logo-icon">
-        {!imageError ? (
-          <img
-            src="/assets/manthan360-logo.png"
-            alt="Manthan360"
-            onError={() => setImageError(true)}
-            className={`${iconDimensions[size]} object-contain shrink-0`}
-          />
-        ) : (
-          <div className={`${iconDimensions[size]} rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-violet-500/20`}>
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-        )}
+        {logoIcon}
       </div>
     );
   }
 
   return (
     <div className={`flex items-center gap-2 select-none shrink-0 ${className}`} id="manthan360-logo-full">
-      {!imageError ? (
-        <img
-          src="/assets/manthan360-logo.png"
-          alt="Manthan360"
-          onError={() => setImageError(true)}
-          className={`${heights[size]} w-auto max-w-[140px] sm:max-w-none object-contain shrink-0`}
-        />
-      ) : (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-violet-500/20">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <span className={`font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-white to-fuchsia-300 ${textSizes[size]}`}>
-            Manthan360
-          </span>
-        </div>
-      )}
+      {logoIcon}
+      <div className="flex items-center font-display font-black tracking-tight leading-none">
+        <span className={`text-slate-100 light:text-slate-900 ${textSizes[size]}`}>
+          Manthan
+        </span>
+        <span className={`text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400 light:from-violet-600 light:to-indigo-600 font-extrabold ${textSizes[size]}`}>
+          360
+        </span>
+      </div>
     </div>
   );
 }
+

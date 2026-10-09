@@ -45,30 +45,21 @@ export default function MobileLearningMenu({
 
   if (!isOpen) return null;
 
-  const allTools = [
-    { id: "summary", label: t.summary, desc: "Key points & detailed breakdown", icon: FileText, requiresNote: true },
-    { id: "tutor", label: t.aiTutor, desc: "Interactive conversational AI tutor", icon: MessageSquare, requiresNote: true },
-    { id: "planner", label: t.roadmap, desc: "Curated learning journey & timeline", icon: CalendarRange, requiresNote: true },
-    { id: "flashcards", label: t.flashcards, desc: "Spaced repetition active practice", icon: Layers, requiresNote: true },
-    { id: "quiz", label: t.quiz, desc: "Self-assessment & score tracking", icon: Award, requiresNote: true },
-    { id: "mindmap", label: t.mindMap, desc: "Visual concept node graph", icon: GitGraph, requiresNote: true },
-    { id: "flowchart", label: t.flowchart, desc: "Step-by-step logic flowchart", icon: Share2, requiresNote: true },
-    { id: "export", label: t.presentation, desc: "Slide decks & study exports", icon: DownloadCloud, requiresNote: true },
-    { id: "videos", label: "AI Animated Teacher", desc: "Multi-slide structured lectures", icon: Video, requiresNote: true },
-    { id: "upload", label: t.uploadButton, desc: "Add PDF, docs, or text notes", icon: UploadCloud, requiresNote: false },
-    { id: "analytics", label: t.settings, desc: "Streak, goals & preferences", icon: Settings, requiresNote: false },
+  const tools = [
+    { id: "chat", label: t.studyChatbot, desc: "Fast AI chat & study companion", icon: MessageSquare },
+    { id: "summary", label: t.summary, desc: "Key points & detailed breakdown", icon: FileText },
+    { id: "flashcards", label: t.flashcards, desc: "Spaced repetition active practice", icon: Layers },
+    { id: "quiz", label: t.quiz, desc: "Self-assessment & score tracking", icon: Award },
+    { id: "mindmap", label: t.mindMap, desc: "Visual concept node graph", icon: GitGraph },
+    { id: "flowchart", label: t.flowchart, desc: "Step-by-step logic flowchart", icon: Share2 },
+    { id: "planner", label: t.roadmap, desc: "Curated learning journey & timeline", icon: CalendarRange },
+    { id: "export", label: t.presentation, desc: "Slide decks & study exports", icon: DownloadCloud },
+    { id: "videos", label: "AI Animated Teacher", desc: "Multi-slide structured lectures", icon: Video },
+    { id: "analytics", label: "Analytics", desc: "Streak, goals & progress", icon: Settings },
+    { id: "upload", label: t.uploadButton, desc: "Add PDF, docs, or text notes", icon: UploadCloud },
   ];
 
-  // Filter tools: hide unsuitable features for non-educational documents
-  const tools = allTools.filter((tool) => {
-    if (!tool.requiresNote) return true;
-    if (!focusedNote || !suitability) return true;
-    if (suitability.unsuitableFeatures.includes(tool.id)) return false;
-    return true;
-  });
-
-  const handleSelect = (toolId: string, locked: boolean) => {
-    if (locked) return;
+  const handleSelect = (toolId: string) => {
     setActiveTab(toolId);
     onClose();
   };
@@ -81,25 +72,25 @@ export default function MobileLearningMenu({
     >
       <div
         id="mobile-learning-menu-panel"
-        className="w-full max-h-[85vh] bg-[#090d1f] border-t border-white/15 rounded-t-3xl flex flex-col p-5 overflow-hidden shadow-2xl"
+        className="w-full max-h-[85vh] bg-slate-950 light:bg-white border-t border-white/15 light:border-black/10 rounded-t-3xl flex flex-col p-5 overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className="flex items-center justify-between pb-4 border-b border-white/10 light:border-black/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Manthan360 Learning Tools</h3>
-              <p className="text-xs text-slate-400">Select a study mode</p>
+              <h3 className="text-base font-bold text-white light:text-slate-900">Manthan360 Learning Tools</h3>
+              <p className="text-xs text-slate-400 light:text-slate-500">Select a study mode</p>
             </div>
           </div>
           <button
             type="button"
             id="mobile-menu-close-btn"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -109,50 +100,38 @@ export default function MobileLearningMenu({
         <div className="flex-1 overflow-y-auto py-3 space-y-2 no-scrollbar" id="mobile-learning-tools-list">
           {tools.map((item) => {
             const Icon = item.icon;
-            const locked = item.requiresNote && !noteSelected;
             const isActive = activeTab === item.id;
 
             return (
               <button
                 key={item.id}
                 id={`mobile-tool-${item.id}`}
-                onClick={() => handleSelect(item.id, locked)}
-                disabled={locked}
-                className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-left transition-all border ${
+                onClick={() => handleSelect(item.id)}
+                className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-left transition-all border cursor-pointer ${
                   isActive
-                    ? "bg-violet-600/20 border-violet-500/40 text-white shadow-md"
-                    : locked
-                    ? "bg-slate-900/40 border-white/5 text-slate-600 cursor-not-allowed opacity-50"
-                    : "bg-slate-900/80 hover:bg-slate-800/90 border-white/10 text-slate-200"
+                    ? "bg-violet-600 text-white border-violet-500 shadow-md shadow-violet-600/20"
+                    : "bg-slate-900/80 light:bg-slate-50 hover:bg-slate-800/90 light:hover:bg-slate-100 border-white/10 light:border-slate-200 text-slate-200 light:text-slate-800"
                 }`}
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                       isActive
-                        ? "bg-violet-500 text-white shadow-lg shadow-violet-500/30"
-                        : locked
-                        ? "bg-slate-800 text-slate-600"
-                        : "bg-slate-800 text-violet-400"
+                        ? "bg-white/20 text-white shadow-inner"
+                        : "bg-slate-800 light:bg-white text-violet-400 light:text-violet-600 border border-white/5 light:border-slate-200"
                     }`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-sm font-semibold truncate ${isActive ? "text-white" : locked ? "text-slate-500" : "text-slate-100"}`}>
+                    <p className={`text-sm font-semibold truncate ${isActive ? "text-white" : "text-slate-100 light:text-slate-900"}`}>
                       {item.label}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">{item.desc}</p>
+                    <p className={`text-xs truncate ${isActive ? "text-violet-100" : "text-slate-400 light:text-slate-500"}`}>{item.desc}</p>
                   </div>
                 </div>
 
-                {locked ? (
-                  <span className="text-[10px] bg-slate-800 px-2 py-1 rounded-md text-slate-400 font-mono">
-                    Needs Note
-                  </span>
-                ) : (
-                  <ChevronRight className={`w-4 h-4 shrink-0 ${isActive ? "text-violet-400" : "text-slate-500"}`} />
-                )}
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-500"}`} />
               </button>
             );
           })}

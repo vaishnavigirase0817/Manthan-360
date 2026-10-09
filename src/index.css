@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700;900&display=swap');
+@import "katex/dist/katex.min.css";
 @import "tailwindcss";
 
 @theme {
@@ -22,113 +23,199 @@
   --accent-soft: rgba(124, 58, 237, 0.15);
 }
 
-/* Light Mode — Maroon Theme Specification */
-html.light, body.light {
-  --bg-main: #fbf9f8;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #fdf5f6;
-  --text-main: #1e080d;
-  --text-secondary: #4a1d24;
-  --text-muted: #783d47;
-  --border-subtle: rgba(136, 19, 55, 0.12);
-  --border-active: rgba(136, 19, 55, 0.35);
-  --accent-gradient: linear-gradient(135deg, #881337, #9f1239);
-  --accent-solid: #881337;
-  --accent-soft: rgba(136, 19, 55, 0.08);
-
-  background-color: #fbf9f8 !important;
-  color: #1e080d !important;
+/* Global Root Sizing & Horizontal Overflow Protection */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
-/* Light Mode Global Component Overrides */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Modern Cross-Browser Scrollbar Styles (eliminates ugly native white bars) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Light Mode — Clean Neutral White & Purple Accent Specification */
+html.light, body.light {
+  --bg-main: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-active: rgba(124, 58, 237, 0.4);
+  --accent-gradient: linear-gradient(135deg, #7c3aed, #6366f1);
+  --accent-solid: #7c3aed;
+  --accent-soft: rgba(124, 58, 237, 0.1);
+
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.2);
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.35);
+}
+
+/* Light Mode Component Overrides */
 html.light #manthan-360-app {
-  background-color: #fbf9f8 !important;
-  color: #1e080d !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
 html.light #main-navbar {
-  background-color: rgba(253, 245, 246, 0.9) !important;
-  border-bottom-color: rgba(136, 19, 55, 0.12) !important;
-  color: #1e080d !important;
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }
 
-html.light #side-bar {
-  background-color: #fdf5f6 !important;
-  border-right-color: rgba(136, 19, 55, 0.12) !important;
-  color: #1e080d !important;
+html.light #top-feature-bar {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
 }
 
-html.light #side-bar button {
-  color: #4a1d24 !important;
+html.light #recent-chats-sidebar {
+  background-color: #ffffff !important;
+  border-right-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+  box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.02);
 }
 
-html.light #side-bar button:hover {
-  background-color: rgba(136, 19, 55, 0.08) !important;
-  color: #881337 !important;
+html.light #applet-viewport {
+  background-color: #f8fafc !important;
 }
 
 html.light #main-chat-workspace {
-  background-color: #fbf9f8 !important;
+  background-color: #f8fafc !important;
+}
+
+html.light #chat-mode-switcher-bar {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light #chat-mode-switcher-bar .bg-slate-900\/90 {
+  background-color: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 html.light #chat-composer-container {
-  background: linear-gradient(to top, #fbf9f8 70%, rgba(251, 249, 248, 0.9) 90%, transparent 100%) !important;
+  background: linear-gradient(to top, #f8fafc 75%, rgba(248, 250, 252, 0.9) 90%, transparent 100%) !important;
 }
 
 html.light #chat-composer-container .bg-slate-900\/90 {
   background-color: #ffffff !important;
-  border-color: rgba(136, 19, 55, 0.18) !important;
-  box-shadow: 0 10px 25px -5px rgba(136, 19, 55, 0.1) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06) !important;
 }
 
 html.light #composer-text-input {
-  color: #1e080d !important;
+  color: #0f172a !important;
 }
 
 html.light #composer-text-input::placeholder {
-  color: #881337 !important;
-  opacity: 0.6 !important;
+  color: #94a3b8 !important;
 }
 
 html.light .bg-slate-900\/90,
 html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/70,
 html.light .bg-slate-900\/60,
-html.light .bg-slate-950 {
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900\/30,
+html.light .bg-slate-900\/20,
+html.light .bg-slate-900\/10,
+html.light .bg-slate-900,
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/70,
+html.light .bg-slate-950,
+html.light .bg-white\/5,
+html.light .bg-white\/10 {
   background-color: #ffffff !important;
-  border-color: rgba(136, 19, 55, 0.12) !important;
-  color: #1e080d !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+}
+
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/40,
+html.light .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
 }
 
 html.light .text-slate-100,
-html.light .text-slate-200,
-html.light .text-white {
-  color: #1e080d !important;
+html.light .text-slate-200 {
+  color: #0f172a !important;
 }
 
 html.light .text-slate-300,
 html.light .text-slate-400 {
-  color: #4a1d24 !important;
+  color: #475569 !important;
 }
 
 html.light .text-slate-500,
 html.light .text-slate-600 {
-  color: #783d47 !important;
+  color: #64748b !important;
 }
 
 html.light .border-white\/10,
 html.light .border-white\/5,
-html.light .border-white\/15 {
-  border-color: rgba(136, 19, 55, 0.12) !important;
+html.light .border-white\/15,
+html.light .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 html.light #document-context-bar {
-  background-color: #fdf5f6 !important;
-  border-color: rgba(136, 19, 55, 0.18) !important;
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }
 
-html.light #mobile-learning-menu-panel {
-  background-color: #fdf5f6 !important;
-  border-top-color: rgba(136, 19, 55, 0.2) !important;
+html.light #mobile-learning-menu-panel,
+html.light #mobile-recent-chats-drawer-panel {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
 }
 
 /* 3D Flashcard Flipping Utensils */
@@ -167,8 +254,42 @@ html.light #mobile-learning-menu-panel {
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(to right, var(--color-cyan-500), var(--color-indigo-500));
+  background: linear-gradient(to right, #7c3aed, #4f46e5);
   opacity: 0.15;
   z-index: -1;
   animation: pulseGlow 3s infinite ease-in-out;
 }
+
+/* KaTeX and Markdown Presentation Styles */
+.markdown-body {
+  word-break: break-word;
+}
+
+.markdown-body .katex-display {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+  max-width: 100%;
+}
+
+.markdown-body .katex {
+  font-size: 1.05em;
+  text-rendering: auto;
+}
+
+html.light .markdown-body .katex {
+  color: #0f172a;
+}
+
+html.dark .markdown-body .katex {
+  color: #f8fafc;
+}
+
+.katex-html {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+

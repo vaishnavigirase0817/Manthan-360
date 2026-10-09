@@ -13,6 +13,7 @@ interface NavbarProps {
 
 export default function Navbar({ user, onOpenLearningTools, onOpenRecentChats }: NavbarProps) {
   const { selectedLanguage, setLanguage } = useLanguage();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   const handleSignOut = async () => {
     try {
@@ -46,7 +47,23 @@ export default function Navbar({ user, onOpenLearningTools, onOpenRecentChats }:
         </div>
       </div>
 
-      <div id="navbar-actions" className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+      <div id="navbar-actions" className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Theme Toggle Button */}
+        <button
+          type="button"
+          id="navbar-theme-toggle-btn"
+          onClick={toggleTheme}
+          className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900/90 border border-white/10 hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer shadow-sm"
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-violet-600" />
+          )}
+        </button>
+
         {/* Global Language Selector (Desktop & Tablet) */}
         <div
           className="hidden sm:flex items-center gap-1.5 bg-slate-900/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs focus-within:border-violet-500/50 transition-all shadow-inner"
