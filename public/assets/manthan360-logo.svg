@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="mGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="innerGlow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Base Background Rounded Square -->
+  <rect x="5" y="5" width="90" height="90" rx="22" fill="#0f172a" stroke="url(#mGrad)" stroke-width="2.5" />
+  <!-- Stylized Churning 360 Ring -->
+  <circle cx="50" cy="50" r="32" fill="none" stroke="url(#mGrad)" stroke-width="4" stroke-dasharray="140 60" stroke-linecap="round" transform="rotate(-45 50 50)" filter="url(#glow)" />
+  <!-- Glowing Center 'M' Monogram -->
+  <path d="M 32 66 L 32 36 L 50 52 L 68 36 L 68 66" fill="none" stroke="url(#innerGlow)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)" />
+  <!-- Core Sparkle Center Node -->
+  <circle cx="50" cy="52" r="3.5" fill="#ffffff" />
+  <circle cx="75" cy="30" r="2.5" fill="#a78bfa" />
+  <circle cx="25" cy="70" r="2" fill="#60a5fa" />
+</svg>
