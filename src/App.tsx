@@ -13,7 +13,7 @@ import Loader from "./components/Loader";
 import { checkAndTickStreak } from "./services/gamification";
 import { ThemeProvider } from "./context/ThemeContext";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { MessageSquare, Sparkles, BookOpen } from "lucide-react";
 import { analyzeContentSuitability } from "./services/contentAnalyzer";
 
 // Code splitting / Route-based lazy loading for heavy workspace pages
@@ -43,6 +43,13 @@ function AppContent() {
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  const [chatMode, setChatMode] = useState<"simple" | "study">(focusedNote ? "study" : "simple");
+
+  useEffect(() => {
+    if (focusedNote) {
+      setChatMode("study");
+    }
+  }, [focusedNote?.id]);
   
   const navigate = useNavigate();
   const { selectedLanguage } = useLanguage();
@@ -262,14 +269,6 @@ function AppContent() {
                   onOpenRecentChats={() => setMobileRecentChatsOpen(true)}
                 />
 
-                {/* Top Learning Features Bar */}
-                <TopFeatureBar
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  focusedNote={focusedNote}
-                  suitability={suitability}
-                />
-
                 {/* Mobile Slide-over Drawer 1: Learning Tools [ ⋮ ] */}
                 <MobileLearningMenu
                   isOpen={mobileLearningOpen}
@@ -309,33 +308,97 @@ function AppContent() {
 
                   {/* Primary Center Viewport */}
                   <main
-                    className={`flex-1 flex flex-col h-full relative bg-[#020617] light:bg-[#f8fafc] ${
-                      isConversationalView ? "overflow-hidden" : "overflow-y-auto"
-                    }`}
+                    className="flex-1 flex flex-col h-full relative bg-[#020617] light:bg-[#f8fafc] overflow-hidden"
                     id="applet-viewport"
                   >
-                    {/* Top Switcher Bar when inside a dedicated tool */}
-                    {!isConversationalView && (
-                      <div className="px-4 sm:px-6 py-2.5 bg-[#020617] light:bg-white border-b border-slate-800/80 light:border-slate-200 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md shadow-sm">
-                        <button
-                          type="button"
-                          id="return-to-chat-btn"
-                          onClick={() => setActiveTab("chat")}
-                          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 light:text-violet-700 border border-violet-500/30 transition-all font-medium cursor-pointer"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 text-violet-400 light:text-violet-600" />
-                          <span>{t.returnToChat}</span>
-                        </button>
+                    {/* Layer 2: Mode Navigation (Simple Chat / Study Mode) */}
+                    <div
+                      id="workspace-mode-navigation-bar"
+                      className="px-3 sm:px-6 py-2 bg-[#020617] light:bg-white border-b border-slate-800/80 light:border-slate-200 flex items-center justify-between gap-2 shrink-0 z-30 select-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-slate-900/90 light:bg-slate-100 p-1 rounded-xl border border-white/10 light:border-slate-300 shadow-inner">
+                          <button
+                            type="button"
+                            id="mode-switch-simple-btn"
+                            onClick={() => {
+                              setChatMode("simple");
+                              setActiveTab("chat");
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                              chatMode === "simple" && activeTab === "chat"
+                                ? "bg-violet-600 text-white font-semibold shadow-md"
+                                : "text-slate-400 light:text-slate-600 hover:text-slate-200 light:hover:text-slate-900"
+                            }`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>{t.simpleChat}</span>
+                            {chatMode === "simple" && activeTab === "chat" && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
+                            )}
+                          </button>
 
-                        {focusedNote && (
-                          <span className="text-slate-400 light:text-slate-600 truncate max-w-xs hidden sm:inline">
-                            Document: <strong className="text-slate-200 light:text-slate-900">{focusedNote.title}</strong>
-                          </span>
+                          <button
+                            type="button"
+                            id="mode-switch-study-btn"
+                            onClick={() => {
+                              setChatMode("study");
+                              setActiveTab("chat");
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                              chatMode === "study" && activeTab === "chat"
+                                ? "bg-violet-600 text-white font-semibold shadow-md"
+                                : "text-slate-400 light:text-slate-600 hover:text-slate-200 light:hover:text-slate-900"
+                            }`}
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>{t.studyMode}</span>
+                            {chatMode === "study" && activeTab === "chat" && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
+                            )}
+                          </button>
+                        </div>
+
+                        {activeTab !== "chat" && (
+                          <button
+                            type="button"
+                            id="return-to-chat-btn"
+                            onClick={() => setActiveTab("chat")}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 light:text-violet-700 border border-violet-500/30 transition-all text-xs font-medium cursor-pointer"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-violet-400 light:text-violet-600" />
+                            <span>{t.returnToChat}</span>
+                          </button>
                         )}
                       </div>
-                    )}
 
-                    <div className="flex-1 flex flex-col min-h-0" id="applet-viewport-inner">
+                      {focusedNote ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-400 light:text-slate-600 truncate">
+                          {suitability?.isValid && (
+                            <span className="px-2 py-0.5 rounded-md bg-violet-950/80 light:bg-violet-100 text-violet-300 light:text-violet-700 border border-violet-800/40 light:border-violet-300 text-[10px] font-semibold">
+                              {suitability.categoryLabel}
+                            </span>
+                          )}
+                          <span className="truncate max-w-[140px] sm:max-w-[220px] text-slate-300 light:text-slate-800 font-medium hidden xs:inline">
+                            {focusedNote.title}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 light:text-slate-500 hidden sm:inline font-mono">
+                          {chatMode === "simple" ? "⚡ Fast AI Mode" : "📚 Document Mode"}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Layer 3: Permanent Learning Tools Toolbar — Always Visible */}
+                    <TopFeatureBar
+                      activeTab={activeTab}
+                      setActiveTab={setActiveTab}
+                      focusedNote={focusedNote}
+                      suitability={suitability}
+                    />
+
+                    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto" id="applet-viewport-inner">
                       {/* Primary Document-Grounded Chatbot Workspace */}
                       {isConversationalView && (
                         <MainChatWorkspace
@@ -348,6 +411,8 @@ function AppContent() {
                           onNewSession={handleStartNewSession}
                           currentSessionId={currentSessionId}
                           onSessionUpdated={fetchChatSessions}
+                          chatMode={chatMode}
+                          setChatMode={setChatMode}
                         />
                       )}
                       

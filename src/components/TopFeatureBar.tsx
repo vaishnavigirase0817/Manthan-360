@@ -35,17 +35,17 @@ export default function TopFeatureBar({
   const t = getTranslation(selectedLanguage);
 
   const tools = [
-    { id: "chat", label: t.studyChatbot, icon: MessageSquare },
-    { id: "summary", label: t.summary, icon: FileText },
-    { id: "flashcards", label: t.flashcards, icon: Layers },
-    { id: "quiz", label: t.quiz, icon: Award },
-    { id: "mindmap", label: t.mindMap, icon: GitGraph },
-    { id: "flowchart", label: t.flowchart, icon: Share2 },
-    { id: "planner", label: t.roadmap, icon: CalendarRange },
-    { id: "export", label: t.presentation, icon: DownloadCloud },
+    { id: "chat", label: t.studyChatbot || "Study Chatbot", icon: MessageSquare },
+    { id: "summary", label: "AI Summary", icon: FileText },
+    { id: "flashcards", label: "Flashcards & Recall", icon: Layers },
+    { id: "quiz", label: "Quiz & Test Me", icon: Award },
+    { id: "mindmap", label: "Mind Map", icon: GitGraph },
+    { id: "flowchart", label: "Concept Flowchart", icon: Share2 },
+    { id: "planner", label: "Study Plan & Roadmap", icon: CalendarRange },
+    { id: "export", label: "AI Presentation", icon: DownloadCloud },
     { id: "videos", label: "AI Teacher", icon: Video },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "upload", label: t.uploadButton, icon: UploadCloud },
+    { id: "upload", label: "Upload Notes", icon: UploadCloud },
   ];
 
   return (

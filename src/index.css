@@ -132,6 +132,7 @@ html.light ::-webkit-scrollbar-thumb:hover {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
+#workspace-mode-navigation-bar,
 #chat-mode-switcher-bar {
   background-color: #020617 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -151,6 +152,13 @@ html.light #main-navbar {
 }
 
 html.light #top-feature-bar {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+}
+
+html.light #workspace-mode-navigation-bar,
+html.light #chat-mode-switcher-bar {
   background-color: #ffffff !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #0f172a !important;

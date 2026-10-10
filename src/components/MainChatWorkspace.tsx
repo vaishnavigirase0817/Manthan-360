@@ -52,6 +52,8 @@ interface MainChatWorkspaceProps {
   onNewSession?: () => void;
   currentSessionId?: string;
   onSessionUpdated?: () => void;
+  chatMode?: "simple" | "study";
+  setChatMode?: (mode: "simple" | "study") => void;
 }
 
 export default function MainChatWorkspace({
@@ -64,6 +66,8 @@ export default function MainChatWorkspace({
   onNewSession,
   currentSessionId,
   onSessionUpdated,
+  chatMode: propChatMode,
+  setChatMode: propSetChatMode,
 }: MainChatWorkspaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +75,9 @@ export default function MainChatWorkspace({
   const [lastQuery, setLastQuery] = useState("");
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [lastCitations, setLastCitations] = useState<string[]>([]);
-  const [chatMode, setChatMode] = useState<"simple" | "study">(focusedNote ? "study" : "simple");
+  const [internalChatMode, setInternalChatMode] = useState<"simple" | "study">(focusedNote ? "study" : "simple");
+  const chatMode = propChatMode ?? internalChatMode;
+  const setChatMode = propSetChatMode ?? setInternalChatMode;
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -425,62 +431,9 @@ export default function MainChatWorkspace({
 
   return (
     <div className="flex-1 flex flex-col h-full relative" id="main-chat-workspace">
-      {/* Top Mode Switcher Bar */}
-      <div
-        id="chat-mode-switcher-bar"
-        className="sticky top-0 z-30 px-3 sm:px-6 py-2 bg-[#020617] light:bg-white border-b border-slate-800/80 light:border-slate-200 flex items-center justify-between gap-2"
-      >
-        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 shadow-inner">
-          <button
-            type="button"
-            id="mode-switch-simple-btn"
-            onClick={() => setChatMode("simple")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              chatMode === "simple"
-                ? "bg-violet-600 text-white font-semibold shadow-md"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>{t.simpleChat}</span>
-            {chatMode === "simple" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />}
-          </button>
-
-          <button
-            type="button"
-            id="mode-switch-study-btn"
-            onClick={() => setChatMode("study")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              chatMode === "study"
-                ? "bg-violet-600 text-white font-semibold shadow-md"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>{t.studyMode}</span>
-            {chatMode === "study" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />}
-          </button>
-        </div>
-
-        {chatMode === "study" && focusedNote && suitability?.isValid ? (
-          <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
-            <span className="px-2 py-0.5 rounded-md bg-violet-950/80 text-violet-300 border border-violet-800/40 text-[10px] font-semibold">
-              {suitability.categoryLabel}
-            </span>
-            <span className="truncate max-w-[140px] sm:max-w-[220px] text-slate-300 font-medium hidden xs:inline">
-              {focusedNote.title}
-            </span>
-          </div>
-        ) : (
-          <span className="text-[11px] text-slate-400 hidden sm:inline font-mono">
-            {chatMode === "simple" ? "⚡ Fast AI Mode" : "📚 Document Mode"}
-          </span>
-        )}
-      </div>
-
       {/* Top Document Context Bar if in study mode with focused note */}
       {chatMode === "study" && focusedNote && (
-        <div className="px-4 pt-2">
+        <div className="px-4 pt-2 shrink-0">
           <DocumentContextBar
             note={focusedNote}
             onClearContext={() => {
