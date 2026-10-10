@@ -37,32 +37,62 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Modern Cross-Browser Scrollbar Styles (eliminates ugly native white bars) */
-::-webkit-scrollbar {
+/* Modern Cross-Browser Scrollbar Styles (eliminates ugly native white bars on Windows/Chrome/Edge) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #020617;
+}
+
+html.light *,
+body.light * {
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+*::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+*::-webkit-scrollbar-track {
+  background: #020617;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.25);
+*::-webkit-scrollbar-thumb {
+  background: #334155;
   border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.45);
+*::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+html.light *::-webkit-scrollbar-track {
+  background: #f8fafc;
 }
 
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+html.light *::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+html.light *::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.no-scrollbar,
+#top-feature-bar,
+.overflow-x-auto.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+#top-feature-bar::-webkit-scrollbar,
+.overflow-x-auto.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 /* Light Mode — Clean Neutral White & Purple Accent Specification */
@@ -91,6 +121,22 @@ html.light ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.35);
 }
 
+/* Default Dark Mode Header & Feature Bar Presentation */
+#main-navbar {
+  background-color: #020617 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#top-feature-bar {
+  background-color: #020617 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#chat-mode-switcher-bar {
+  background-color: #020617 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
 /* Light Mode Component Overrides */
 html.light #manthan-360-app {
   background-color: #f8fafc !important;
@@ -98,15 +144,15 @@ html.light #manthan-360-app {
 }
 
 html.light #main-navbar {
-  background-color: rgba(255, 255, 255, 0.94) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #0f172a !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }
 
 html.light #top-feature-bar {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #0f172a !important;
 }
 
@@ -126,8 +172,8 @@ html.light #main-chat-workspace {
 }
 
 html.light #chat-mode-switcher-bar {
-  background-color: rgba(255, 255, 255, 0.94) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 html.light #chat-mode-switcher-bar .bg-slate-900\/90 {

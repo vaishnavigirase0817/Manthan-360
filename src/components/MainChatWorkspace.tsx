@@ -428,7 +428,7 @@ export default function MainChatWorkspace({
       {/* Top Mode Switcher Bar */}
       <div
         id="chat-mode-switcher-bar"
-        className="sticky top-0 z-30 px-3 sm:px-6 py-2 bg-slate-950/90 backdrop-blur-md border-b border-white/10 flex items-center justify-between gap-2"
+        className="sticky top-0 z-30 px-3 sm:px-6 py-2 bg-[#020617] light:bg-white border-b border-slate-800/80 light:border-slate-200 flex items-center justify-between gap-2"
       >
         <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 shadow-inner">
           <button

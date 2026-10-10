@@ -26,7 +26,7 @@ export default function Navbar({ user, onOpenLearningTools, onOpenRecentChats }:
   return (
     <nav
       id="main-navbar"
-      className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/90 backdrop-blur-xl px-3 sm:px-6 py-2.5 flex items-center justify-between transition-all"
+      className="sticky top-0 z-40 w-full border-b border-slate-800/80 light:border-slate-200 bg-[#020617] light:bg-white backdrop-blur-xl px-3 sm:px-6 py-2.5 flex items-center justify-between transition-all"
     >
       <div id="navbar-brand-section" className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Mobile Left Menu: Recent Chats Trigger [ ☰ ] */}

@@ -51,7 +51,7 @@ export default function TopFeatureBar({
   return (
     <div
       id="top-feature-bar"
-      className="w-full bg-slate-950/80 light:bg-white/95 backdrop-blur-md border-b border-white/10 light:border-black/5 px-3 sm:px-6 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar select-none z-30 shrink-0"
+      className="w-full bg-[#020617] light:bg-white border-b border-slate-800/80 light:border-slate-200 px-3 sm:px-6 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar select-none z-30 shrink-0"
     >
       <div className="flex items-center gap-1.5 min-w-max">
         {tools.map((tool) => {
@@ -83,7 +83,7 @@ export default function TopFeatureBar({
       </div>
 
       {focusedNote && (
-        <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-white/10 light:border-black/10 text-[11px] text-slate-400 light:text-slate-600 truncate shrink-0">
+        <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-800/80 light:border-slate-200 text-[11px] text-slate-400 light:text-slate-600 truncate shrink-0">
           <Sparkles className="w-3.5 h-3.5 text-violet-400 light:text-violet-600 shrink-0" />
           <span className="truncate max-w-[200px]">
             {suitability?.categoryLabel || "Active"}: <strong className="text-slate-200 light:text-slate-900">{focusedNote.title}</strong>

@@ -316,7 +316,7 @@ function AppContent() {
                   >
                     {/* Top Switcher Bar when inside a dedicated tool */}
                     {!isConversationalView && (
-                      <div className="px-4 sm:px-6 py-2.5 bg-slate-950/80 light:bg-white/90 border-b border-white/5 light:border-black/5 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md shadow-sm">
+                      <div className="px-4 sm:px-6 py-2.5 bg-[#020617] light:bg-white border-b border-slate-800/80 light:border-slate-200 flex items-center justify-between text-xs sticky top-0 z-20 backdrop-blur-md shadow-sm">
                         <button
                           type="button"
                           id="return-to-chat-btn"
